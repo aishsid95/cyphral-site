@@ -1,0 +1,8 @@
+{
+  "ceReadinessSprint": { "listed": 395, "founding": 200, "currency": "GBP", "unit": "from" },
+  "ceAnnualRenewal":   { "listed": 195, "founding": 100, "currency": "GBP", "unit": "from" },
+  "automationWorkflow":{ "listed": 395, "founding": 250, "foundingRange": "200-300", "currency": "GBP", "unit": "from" },
+  "automationHourly":  { "listed": 45,  "founding": 35,  "currency": "GBP", "unit": "per hour" },
+  "cyberCareSmall":    { "listed": 125, "founding": 100, "currency": "GBP", "unit": "per month" },
+  "cyberCareMid":      { "listed": 225, "founding": 175, "currency": "GBP", "unit": "per month" }
+}

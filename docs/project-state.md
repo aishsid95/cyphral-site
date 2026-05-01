@@ -6,11 +6,21 @@ what was built, decisions made, current state, next expected task.
 
 ## Current phase
 Phase 0 — Foundation
-Status: 7/8 tasks complete
-Next task: Task 8 — Connect Cloudflare Workers Builds for auto-deploy of main
+Status: 8/8 tasks COMPLETE
+Next phase: Phase 1 — Brand and Design Tokens
+Next task: Phase 1 Task 1 — Generate logo SVG variants
 
 ## Latest update
-2026-05-01 — Task 7 complete. Orchestration scaffolding in place.
+2026-05-02 — Phase 0 closed. Site live at https://cyphral.co.uk
+
+## Live infrastructure
+
+- **Production URL**: https://cyphral.co.uk
+- **WWW redirect**: https://www.cyphral.co.uk
+- **Workers.dev fallback**: https://cyphral-site.aishsid95.workers.dev
+- **Inbound email**: hello@cyphral.co.uk, aisha@cyphral.co.uk → aishsid95@gmail.com
+- **Outbound email domain** (verified, ready for Phase 4): send.cyphral.co.uk via Resend
+- **Repo**: https://github.com/aishsid95/cyphral-site (public, main branch auto-deploys)
 
 ## Phase 0 progress
 
@@ -23,7 +33,7 @@ Next task: Task 8 — Connect Cloudflare Workers Builds for auto-deploy of main
 | 5 | GitHub repo cyphral-site (public) created | done |
 | 6 | Astro + Tailwind + Cloudflare adapter scaffolded, pushed to main | done |
 | 7 | CLAUDE.md, .claude/settings.json, project-state.md, pricing.json, founding-clients.json | done |
-| 8 | Connect Cloudflare Workers Builds → auto-deploy main → cyphral.co.uk | todo |
+| 8 | Connect Cloudflare Workers Builds → auto-deploy main → cyphral.co.uk | done — cyphral.co.uk + www.cyphral.co.uk live over HTTPS via Cloudflare Workers, auto-deploy from main configured |
 
 ## Key decisions made
 
@@ -59,4 +69,4 @@ Next task: Task 8 — Connect Cloudflare Workers Builds for auto-deploy of main
 - HMRC self-assessment registration as sole trader (parallel workstream, separate from this build).
 
 ## Next expected task
-Task 8 — Connect Cloudflare Workers Builds to the GitHub repo so pushes to `main` auto-deploy. Then cyphral.co.uk should resolve to the placeholder Astro page over HTTPS, completing Phase 0.
+Phase 1 Task 1 — Generate 3–4 logo SVG variants for Aisha to pick from. Navy/turquoise brand palette, typography-led, no stock art. Variants should cover wordmark, icon+wordmark, and icon-only (for favicon/social).

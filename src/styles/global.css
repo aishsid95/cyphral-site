@@ -1,1 +1,39 @@
+@font-face {
+  font-family: "Switzer";
+  src: url("/fonts/switzer-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Switzer";
+  src: url("/fonts/switzer-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Switzer";
+  src: url("/fonts/switzer-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Switzer";
+  src: url("/fonts/switzer-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --color-navy: #0B1B2B;
+  --color-off-white: #FAFAF7;
+  --color-near-black: #1A1A1A;
+  --color-turquoise: #2DD4BF;
+  --font-display: "Switzer", system-ui, -apple-system, sans-serif;
+  --font-body: "Switzer", system-ui, -apple-system, sans-serif;
+}
+
 @import "tailwindcss";

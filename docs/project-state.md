@@ -5,13 +5,12 @@ start of every session. Update it at the end of every completed task with:
 what was built, decisions made, current state, next expected task.
 
 ## Current phase
-Phase 0 — Foundation
-Status: 8/8 tasks COMPLETE
-Next phase: Phase 1 — Brand and Design Tokens
-Next task: Phase 1 Task 1 — Generate logo SVG variants
+Phase 1 — Brand and Design Tokens
+Status: 1/8 tasks complete
+Latest update: 2026-05-05 — Phase 1 Task 1.5 complete. Wordmark-only brand identity shipped (Switzer Semibold, "Cyphral" title case). Geometric mark deferred to post-launch.
 
 ## Latest update
-2026-05-02 — Phase 0 closed. Site live at https://cyphral.co.uk
+2026-05-05 — Phase 1 Task 1.5 complete. Self-hosted Switzer Semibold (4 weights in public/fonts/), @font-face + CSS custom properties in global.css, Wordmark.astro component (size/reversed/as props), favicon.svg lettermark (C in navy). Home page updated to placeholder using Wordmark component. Geometric mark deferred.
 
 ## Live infrastructure
 
@@ -59,6 +58,12 @@ Next task: Phase 1 Task 1 — Generate logo SVG variants
 - `/src/data/pricing.json` — pricing source of truth
 - `/src/data/founding-clients.json` — founding-client counter source of truth
 
+## Phase 1 progress
+
+| Task | Description | Status |
+|---|---|---|
+| 1.5 | Wordmark + favicon (Switzer Semibold, no geometric mark) | done |
+
 ## Outstanding non-build TODOs
 
 - ICO data protection registration when contact form goes live (Phase 4 trigger).
@@ -68,5 +73,9 @@ Next task: Phase 1 Task 1 — Generate logo SVG variants
 - Confirm self-employment permissibility with OISC-registered adviser.
 - HMRC self-assessment registration as sole trader (parallel workstream, separate from this build).
 
+## Deferred work — post-launch
+
+- **Geometric logo mark.** v1 ships wordmark-only (Switzer Semibold "Cyphral"). The geometric mark — intended to carry layered meaning in the spirit of Aisha's father's Fumzas logo (Latin/Arabic letterform crossover, hand-drawn warmth) — is deferred. Two paths to revisit: (a) Aisha sketches concepts by hand and we vectorise; (b) hire a logo designer (Fiverr, ~£25-60, one-off purchase, halal-clean). Do not commission cold geometric SaaS marks. Reference: `/docs/logo-brief.md` (to be created when work resumes).
+
 ## Next expected task
-Phase 1 Task 1 — Generate 3–4 logo SVG variants for Aisha to pick from. Navy/turquoise brand palette, typography-led, no stock art. Variants should cover wordmark, icon+wordmark, and icon-only (for favicon/social).
+Phase 1 Task 2 — Design tokens (full set) and Tailwind config integration.

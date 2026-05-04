@@ -1,17 +1,23 @@
 ---
-
+import Wordmark from "../components/Wordmark.astro";
+import "../styles/global.css";
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Cyphral — Cybersecurity & automation for UK SMEs</title>
+    <meta name="description" content="Cyphral helps UK small businesses prepare for Cyber Essentials certification, automate operations, and stay secure." />
+  </head>
+  <body class="bg-[var(--color-off-white)] min-h-screen flex items-center justify-center">
+    <main class="text-center px-6">
+      <Wordmark size="hero" as="h1" />
+      <p class="mt-8 text-lg text-[var(--color-near-black)] opacity-70 font-display max-w-md mx-auto">
+        Cybersecurity and automation consultancy for UK small businesses. Coming soon.
+      </p>
+    </main>
+  </body>
 </html>

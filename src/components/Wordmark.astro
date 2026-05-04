@@ -1,0 +1,51 @@
+---
+/**
+ * Cyphral wordmark — v1 brand identity.
+ *
+ * Title case "Cyphral" set in Switzer Semibold with tightened letterspacing.
+ * No geometric mark in v1 — that work is deferred and tracked in project-state.md.
+ *
+ * Props:
+ *   - size: "sm" | "md" | "lg" | "xl" | "hero" (default: "md")
+ *   - reversed: boolean — if true, renders off-white for use on dark backgrounds (default: false)
+ *   - as: HTML element to render the wordmark in (default: "span"). Use "h1" for the hero,
+ *     "a" inside header navigation, etc. The hero usage on the home page should pass as="h1".
+ *     Header navigation usage wraps the component in an <a> manually — keep as="span" there.
+ */
+interface Props {
+  size?: "sm" | "md" | "lg" | "xl" | "hero";
+  reversed?: boolean;
+  as?: "span" | "h1" | "div";
+  class?: string;
+}
+
+const { size = "md", reversed = false, as: Tag = "span", class: className = "" } = Astro.props;
+
+const sizeClasses: Record<NonNullable<Props["size"]>, string> = {
+  sm: "text-lg",       // ~18px — for footer
+  md: "text-2xl",      // ~24px — for header
+  lg: "text-4xl",      // ~36px
+  xl: "text-6xl",      // ~60px
+  hero: "text-7xl md:text-8xl lg:text-9xl",  // hero — responsive
+};
+---
+
+<Tag
+  class:list={[
+    "wordmark",
+    "font-display font-semibold",
+    "tracking-[-0.02em]",
+    "leading-none",
+    sizeClasses[size],
+    reversed ? "text-[var(--color-off-white)]" : "text-[var(--color-navy)]",
+    className,
+  ]}
+>Cyphral</Tag>
+
+<style>
+  .wordmark {
+    font-feature-settings: "ss01", "ss02";  /* Switzer stylistic sets — graceful fallback */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+</style>

@@ -6,7 +6,7 @@
  *   - <head>: charset, viewport, title, meta description, canonical, OG tags, favicon
  *   - Skip-to-content link (a11y requirement)
  *   - Sticky header with scroll-aware background
- *   - Main content slot (constrained to max-w-6xl)
+ *   - Main content slot (constrained to max-w-[1600px])
  *   - Footer with brand, contact, legal links
  *
  * Props:
@@ -95,7 +95,7 @@ const currentYear = new Date().getFullYear();
       class="sticky top-0 z-40 transition-colors duration-200"
       data-scrolled="false"
     >
-      <div class="mx-auto max-w-6xl px-6 md:px-8 py-5 flex items-center justify-between">
+      <div class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 py-5 flex items-center justify-between">
         <a
           href="/"
           aria-label="Cyphral home"
@@ -122,7 +122,7 @@ const currentYear = new Date().getFullYear();
     </header>
 
     <!-- Main content -->
-    <main id="main" class="mx-auto max-w-6xl px-6 md:px-8 py-12 md:py-20">
+    <main id="main" class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 py-12 md:py-20">
       <slot />
     </main>
 

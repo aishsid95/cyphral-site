@@ -26,7 +26,7 @@ const sizeClasses: Record<NonNullable<Props["size"]>, string> = {
   md: "text-2xl",      // ~24px — for header
   lg: "text-4xl",      // ~36px
   xl: "text-6xl",      // ~60px
-  hero: "text-7xl md:text-8xl lg:text-9xl",  // hero — responsive
+  hero: "text-hero",  // fluid clamp(4.5rem, 14vw, 14rem) from @theme
 };
 ---
 

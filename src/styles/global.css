@@ -72,6 +72,7 @@
   --text-7xl: 4.5rem;        /* 72px — hero (mobile) */
   --text-8xl: 6rem;          /* 96px — hero (tablet) */
   --text-9xl: 8rem;          /* 128px — hero (desktop) */
+  --text-hero: clamp(4.5rem, 14vw, 14rem); /* fluid hero: 72px → scales → 224px */
 
   /* === Font families === */
   --font-display: "Switzer", system-ui, -apple-system, "Segoe UI", sans-serif;

@@ -1,16 +1,21 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import Wordmark from "../components/Wordmark.astro";
+import FoundingClientBanner from "../components/FoundingClientBanner.astro";
 ---
 
 <Layout
   title="Cybersecurity & automation for UK SMEs"
   description="Cyphral helps UK small businesses prepare for Cyber Essentials certification, automate operations, and stay secure. Coming soon."
 >
-  <section class="py-16 md:py-24 text-center">
+  <section class="py-12 md:py-20 text-center">
     <Wordmark size="hero" as="h1" />
     <p class="mt-8 text-lg md:text-xl text-neutral-700 max-w-md mx-auto leading-relaxed">
       Cybersecurity and automation consultancy for UK small businesses. Coming soon.
     </p>
+  </section>
+
+  <section class="pb-16 md:pb-24">
+    <FoundingClientBanner variant="hero" />
   </section>
 </Layout>

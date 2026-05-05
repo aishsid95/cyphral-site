@@ -1,0 +1,98 @@
+---
+/**
+ * Founding-client banner.
+ *
+ * Reads src/data/founding-clients.json at build time. Displays an offer banner
+ * showing how many of 10 founding-client spots remain, with a CTA to learn more.
+ *
+ * Renders nothing when the offer is closed (all 10 spots taken OR offer end date passed).
+ *
+ * Props:
+ *   - variant: "hero" | "inline" — visual treatment.
+ *       - hero: large card with prominent CTA (used on home page hero)
+ *       - inline: compact strip (used inside Services page or near footer)
+ *   - href: where the CTA links to. Defaults to "/founding-offer" (a page we'll build later;
+ *           for now it 404s gracefully). Allow override for inline contexts that link
+ *           somewhere else (e.g. directly to /contact).
+ *
+ * The banner intentionally:
+ *   - Does NOT show the discounted prices here. The offer is "discount available" — the
+ *     specifics live in the engagement letter and on the Services page price blocks.
+ *   - Always shows the listed/founding pair as paired data, not just discount alone
+ *     (per CLAUDE.md rule: never show only the discounted price).
+ */
+import foundingData from "../data/founding-clients.json";
+
+interface Props {
+  variant?: "hero" | "inline";
+  href?: string;
+  class?: string;
+}
+
+const { variant = "hero", href = "/founding-offer", class: className = "" } = Astro.props;
+
+const taken: number = foundingData.taken;
+const total: number = foundingData.total;
+const offerEndsOn: string = foundingData.offerEndsOn;
+
+// Determine if offer is still active
+const today = new Date();
+const endDate = new Date(offerEndsOn);
+const isActive = taken < total && today < endDate;
+
+// Format end date as "31 December 2026" for display
+const formattedEndDate = endDate.toLocaleDateString("en-GB", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+const remaining = total - taken;
+---
+
+{isActive && variant === "hero" && (
+  <aside
+    class:list={[
+      "relative overflow-hidden",
+      "rounded-xl border border-turquoise-200 bg-turquoise-50",
+      "px-6 py-6 md:px-8 md:py-8",
+      "flex flex-col md:flex-row md:items-center md:justify-between gap-5 md:gap-8",
+      className,
+    ]}
+    aria-labelledby="founding-banner-heading"
+  >
+    <div class="space-y-1.5">
+      <p class="text-xs uppercase tracking-wider font-semibold text-turquoise-800">
+        Founding client offer
+      </p>
+      <h2 id="founding-banner-heading" class="text-xl md:text-2xl font-semibold text-navy-900">
+        {remaining} of {total} founding spots still open.
+      </h2>
+      <p class="text-sm md:text-base text-neutral-700 max-w-xl leading-relaxed">
+        Discounted rates for the first {total} clients in exchange for a written testimonial.
+        Offer ends when the {total}<sup>th</sup> client signs, or {formattedEndDate}, whichever first.
+      </p>
+    </div>
+
+    <a
+      href={href}
+      class="inline-flex items-center justify-center px-5 py-2.5 rounded-md bg-navy-500 hover:bg-navy-600 text-neutral-50 text-sm md:text-base font-medium transition-colors whitespace-nowrap"
+    >
+      See the offer →
+    </a>
+  </aside>
+)}
+
+{isActive && variant === "inline" && (
+  <p
+    class:list={[
+      "text-sm text-neutral-700",
+      "border-l-2 border-turquoise-500 pl-4 py-1",
+      className,
+    ]}
+  >
+    <span class="font-semibold text-navy-700">Founding client offer:</span>
+    {" "}
+    {remaining} of {total} spots still open. <a href={href} class="text-turquoise-700 hover:text-turquoise-500 underline underline-offset-2">See terms</a>.
+  </p>
+)}

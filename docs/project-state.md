@@ -5,12 +5,11 @@ start of every session. Update it at the end of every completed task with:
 what was built, decisions made, current state, next expected task.
 
 ## Current phase
-Phase 1 — Brand and Design Tokens
-Status: 1/8 tasks complete
-Latest update: 2026-05-05 — Phase 1 Task 1.5 complete. Wordmark-only brand identity shipped (Switzer Semibold, "Cyphral" title case). Geometric mark deferred to post-launch.
+Phase 1 — Brand and Design Tokens (CLOSED)
+Next phase: Phase 2 — Page content
 
 ## Latest update
-2026-05-05 — Phase 1 Task 1.5 complete. Self-hosted Switzer Semibold (4 weights in public/fonts/), @font-face + CSS custom properties in global.css, Wordmark.astro component (size/reversed/as props), favicon.svg lettermark (C in navy). Home page updated to placeholder using Wordmark component. Geometric mark deferred.
+2026-05-05 — Phase 1 closed. Brand identity, design tokens, Layout, FoundingClientBanner, PriceBlock, maroon palette pivot, footer redesign, fluid hero all live. Site visually established.
 
 ## Live infrastructure
 
@@ -58,11 +57,20 @@ Latest update: 2026-05-05 — Phase 1 Task 1.5 complete. Wordmark-only brand ide
 - `/src/data/pricing.json` — pricing source of truth
 - `/src/data/founding-clients.json` — founding-client counter source of truth
 
-## Phase 1 progress
+## Phase 1 progress (CLOSED)
 
 | Task | Description | Status |
 |---|---|---|
 | 1.5 | Wordmark + favicon (Switzer Semibold, no geometric mark) | done |
+| 1.6 | Navy colour lift #0B1B2B → #1A365D; preserve deep as --color-navy-deep | done |
+| 2 | Full design token system: navy/turquoise/neutral scales, type scale, semantic aliases, base styles | done |
+| 3 | Base Layout.astro: head meta, sticky header, skip link, footer, slot | done |
+| 4 | FoundingClientBanner.astro: hero + inline variants, build-time offer gate | done |
+| 4.5 | Brand palette pivot: turquoise → maroon (UK institutional register) | done |
+| 4.7 | Footer redesign: centred-stack, middot link row, remove sole-trader disclosure | done |
+| 4.8 | Footer compact spacing | done |
+| — | Layout widening: max-w-[1600px], scaling padding, fluid hero clamp(4.5rem, 14vw, 14rem) | done |
+| 5 | PriceBlock.astro: listed headline + founding badge + IASME disclosure, closed-offer gate | done |
 
 ## Outstanding non-build TODOs
 
@@ -78,4 +86,4 @@ Latest update: 2026-05-05 — Phase 1 Task 1.5 complete. Wordmark-only brand ide
 - **Geometric logo mark.** v1 ships wordmark-only (Switzer Semibold "Cyphral"). The geometric mark — intended to carry layered meaning in the spirit of Aisha's father's Fumzas logo (Latin/Arabic letterform crossover, hand-drawn warmth) — is deferred. Two paths to revisit: (a) Aisha sketches concepts by hand and we vectorise; (b) hire a logo designer (Fiverr, ~£25-60, one-off purchase, halal-clean). Do not commission cold geometric SaaS marks. Reference: `/docs/logo-brief.md` (to be created when work resumes).
 
 ## Next expected task
-Phase 1 Task 2 — Design tokens (full set) and Tailwind config integration.
+Phase 2 Task 1 — Home page copy drafting. Approach: copy-first in orchestrator window (Option B), then single Claude Code prompt to create all 5 page files with locked copy.

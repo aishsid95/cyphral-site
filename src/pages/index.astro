@@ -2,6 +2,7 @@
 import Layout from "../layouts/Layout.astro";
 import Wordmark from "../components/Wordmark.astro";
 import FoundingClientBanner from "../components/FoundingClientBanner.astro";
+import PriceBlock from "../components/PriceBlock.astro";
 ---
 
 <Layout
@@ -17,5 +18,21 @@ import FoundingClientBanner from "../components/FoundingClientBanner.astro";
 
   <section class="pb-16 md:pb-24">
     <FoundingClientBanner variant="hero" />
+  </section>
+
+  <section class="pb-16 md:pb-24">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+      <PriceBlock
+        serviceKey="ceReadinessSprint"
+        title="Cyber Essentials Readiness Sprint"
+        description="Two-week intensive preparation for the Cyber Essentials assessment. Includes scoping, gap analysis, remediation guidance, and submission support."
+        showIasmeDisclosure={true}
+      />
+      <PriceBlock
+        serviceKey="automationWorkflow"
+        title="Automation & integration"
+        description="One-off automation workflows tailored to your operations — repetitive tasks, data syncing, reporting pipelines."
+      />
+    </div>
   </section>
 </Layout>

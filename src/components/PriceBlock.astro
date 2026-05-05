@@ -1,0 +1,150 @@
+---
+/**
+ * PriceBlock — displays a service's pricing with brand discipline.
+ *
+ * Brand rules (must not violate):
+ *   1. Listed price is the visual headline. Founding-client discount is a
+ *      secondary badge below — never the headline alone.
+ *   2. For Cyber Essentials services (where showIasmeDisclosure=true), the
+ *      IASME assessment fee disclosure appears beneath the price block.
+ *   3. When the founding offer is closed (taken >= total OR offerEndsOn passed),
+ *      the founding badge is not rendered — only the listed price.
+ *
+ * Reads:
+ *   - src/data/pricing.json (price values, source of truth)
+ *   - src/data/founding-clients.json (offer-active state)
+ *
+ * Props:
+ *   - serviceKey: keyof pricing.json — the service to display
+ *   - title: human-readable service name
+ *   - description?: optional short description (1-2 sentences max)
+ *   - showIasmeDisclosure?: boolean — set true for any CE-related service
+ *   - class?: optional className passthrough
+ */
+import pricing from "../data/pricing.json";
+import foundingData from "../data/founding-clients.json";
+
+type ServiceKey = keyof typeof pricing;
+
+interface Props {
+  serviceKey: ServiceKey;
+  title: string;
+  description?: string;
+  showIasmeDisclosure?: boolean;
+  class?: string;
+}
+
+const {
+  serviceKey,
+  title,
+  description,
+  showIasmeDisclosure = false,
+  class: className = "",
+} = Astro.props;
+
+const service = pricing[serviceKey];
+if (!service) {
+  throw new Error(`PriceBlock: unknown serviceKey "${serviceKey}". Check src/data/pricing.json.`);
+}
+
+// Determine offer-active status (same logic as FoundingClientBanner)
+const today = new Date();
+const offerEndDate = new Date(foundingData.offerEndsOn);
+const offerActive =
+  foundingData.taken < foundingData.total && today < offerEndDate;
+
+// Format currency: whole pounds get no decimals (£395)
+function formatPrice(amount: number): string {
+  return `£${amount.toLocaleString("en-GB")}`;
+}
+
+// Build the listed price display string based on unit
+function formatListedPrice(): string {
+  const price = formatPrice(service.listed);
+  if (service.unit === "from") return `from ${price}`;
+  if (service.unit === "per hour") return `${price}/hour`;
+  if (service.unit === "per month") return `${price}/month`;
+  return price;
+}
+
+// Build the founding-discount price display
+function formatFoundingPrice(): string {
+  // Special case: range exists (automationWorkflow) — use en-dash (U+2013)
+  if ("foundingRange" in service && typeof service.foundingRange === "string") {
+    const [low, high] = service.foundingRange.split("-").map(Number);
+    return `from ${formatPrice(low)}–${formatPrice(high)}`;
+  }
+  // Mirror the listed-price unit pattern
+  const price = formatPrice(service.founding);
+  if (service.unit === "from") return `from ${price}`;
+  if (service.unit === "per hour") return `${price}/hour`;
+  if (service.unit === "per month") return `${price}/month`;
+  return price;
+}
+
+const listedDisplay = formatListedPrice();
+const foundingDisplay = formatFoundingPrice();
+
+const IASME_DISCLOSURE =
+  "The IASME assessment fee (currently £320+VAT for micro businesses) is paid separately by the client to the certification body. This is not included in our fee.";
+---
+
+<article
+  class:list={[
+    "border border-neutral-200 rounded-xl bg-neutral-50",
+    "p-6 md:p-8",
+    "flex flex-col gap-5",
+    "transition-shadow hover:shadow-md",
+    className,
+  ]}
+  aria-labelledby={`price-${serviceKey}-title`}
+>
+  <!-- Title and description -->
+  <header class="space-y-2">
+    <h3
+      id={`price-${serviceKey}-title`}
+      class="text-xl md:text-2xl font-semibold text-navy-900 leading-tight"
+    >
+      {title}
+    </h3>
+    {description && (
+      <p class="text-sm md:text-base text-neutral-700 leading-relaxed">
+        {description}
+      </p>
+    )}
+  </header>
+
+  <!-- Price block -->
+  <div class="space-y-3 mt-2">
+    <!-- Listed price (headline — always displayed) -->
+    <div>
+      <p
+        class="text-3xl md:text-4xl font-semibold text-navy-500 leading-none"
+        aria-label={`Listed price: ${listedDisplay}`}
+      >
+        {listedDisplay}
+      </p>
+    </div>
+
+    <!-- Founding-client badge (only when offer is active) -->
+    {offerActive && (
+      <div
+        class="bg-maroon-50 border border-maroon-200 rounded-md px-3 py-2 inline-flex flex-col gap-0.5 self-start max-w-full"
+      >
+        <p class="text-[10px] uppercase tracking-wider font-semibold text-maroon-700">
+          Founding client offer
+        </p>
+        <p class="text-sm md:text-base font-medium text-navy-900">
+          {foundingDisplay}
+        </p>
+      </div>
+    )}
+  </div>
+
+  <!-- IASME assessment fee disclosure (only for CE-related services) -->
+  {showIasmeDisclosure && (
+    <p class="text-xs text-neutral-500 leading-relaxed mt-1">
+      {IASME_DISCLOSURE}
+    </p>
+  )}
+</article>

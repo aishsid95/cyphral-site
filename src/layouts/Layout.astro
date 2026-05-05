@@ -128,55 +128,48 @@ const currentYear = new Date().getFullYear();
 
     <!-- Footer -->
     <footer class="border-t border-neutral-200 mt-24 md:mt-32">
-      <div class="mx-auto max-w-6xl px-6 md:px-8 py-12 md:py-16">
-        <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-10 md:gap-16">
+      <div class="mx-auto max-w-3xl px-6 md:px-8 py-16 md:py-20 text-center">
 
-          <div class="space-y-4 md:max-w-sm">
-            <Wordmark size="sm" />
-            <p class="text-sm text-neutral-600 leading-relaxed">
-              Cybersecurity and automation consultancy for UK small businesses. We help you prepare for Cyber Essentials, automate operations, and stay secure.
-            </p>
-            <p class="text-sm">
-              <a
-                href="mailto:hello@cyphral.co.uk"
-                class="text-navy-500 hover:text-maroon-700 transition-colors"
-              >
-                hello@cyphral.co.uk
-              </a>
-            </p>
-          </div>
-
-          <div class="grid grid-cols-2 gap-8 md:gap-16 text-sm">
-            <div>
-              <h2 class="text-xs uppercase tracking-wider text-neutral-500 font-semibold mb-3">
-                Site
-              </h2>
-              <ul class="space-y-2">
-                <li><a href="/services" class="text-neutral-700 hover:text-navy-500 transition-colors">Services</a></li>
-                <li><a href="/about" class="text-neutral-700 hover:text-navy-500 transition-colors">About</a></li>
-                <li><a href="/insights" class="text-neutral-700 hover:text-navy-500 transition-colors">Insights</a></li>
-                <li><a href="/contact" class="text-neutral-700 hover:text-navy-500 transition-colors">Contact</a></li>
-              </ul>
-            </div>
-
-            <div>
-              <h2 class="text-xs uppercase tracking-wider text-neutral-500 font-semibold mb-3">
-                Legal
-              </h2>
-              <ul class="space-y-2">
-                <li><a href="/privacy" class="text-neutral-700 hover:text-navy-500 transition-colors">Privacy</a></li>
-                <li><a href="/cookies" class="text-neutral-700 hover:text-navy-500 transition-colors">Cookies</a></li>
-                <li><a href="/terms" class="text-neutral-700 hover:text-navy-500 transition-colors">Terms</a></li>
-              </ul>
-            </div>
-          </div>
-
+        <!-- Brand block: wordmark, tagline, primary contact -->
+        <div class="space-y-5">
+          <Wordmark size="md" />
+          <p class="text-sm md:text-base text-neutral-700 leading-relaxed max-w-md mx-auto">
+            Cybersecurity and automation consultancy for UK small businesses.
+          </p>
+          <p class="text-sm md:text-base">
+            <a
+              href="mailto:hello@cyphral.co.uk"
+              class="text-navy-500 hover:text-maroon-700 underline underline-offset-4 decoration-neutral-300 hover:decoration-maroon-500 transition-colors"
+            >
+              hello@cyphral.co.uk
+            </a>
+          </p>
         </div>
 
-        <div class="mt-10 md:mt-14 pt-8 border-t border-neutral-200 flex flex-col md:flex-row md:items-center md:justify-between gap-4 text-xs text-neutral-500">
-          <p>© {currentYear} Cyphral. Sole trader registered in England.</p>
-          <p>Made in London.</p>
-        </div>
+        <!-- Inline link row -->
+        <nav aria-label="Footer" class="mt-12 md:mt-14">
+          <ul class="flex flex-wrap items-center justify-center gap-x-2 gap-y-2 text-sm text-neutral-700">
+            <li><a href="/services" class="hover:text-navy-500 transition-colors">Services</a></li>
+            <li aria-hidden="true" class="text-neutral-400">·</li>
+            <li><a href="/about" class="hover:text-navy-500 transition-colors">About</a></li>
+            <li aria-hidden="true" class="text-neutral-400">·</li>
+            <li><a href="/insights" class="hover:text-navy-500 transition-colors">Insights</a></li>
+            <li aria-hidden="true" class="text-neutral-400">·</li>
+            <li><a href="/contact" class="hover:text-navy-500 transition-colors">Contact</a></li>
+            <li aria-hidden="true" class="text-neutral-400">·</li>
+            <li><a href="/privacy" class="hover:text-navy-500 transition-colors">Privacy</a></li>
+            <li aria-hidden="true" class="text-neutral-400">·</li>
+            <li><a href="/cookies" class="hover:text-navy-500 transition-colors">Cookies</a></li>
+            <li aria-hidden="true" class="text-neutral-400">·</li>
+            <li><a href="/terms" class="hover:text-navy-500 transition-colors">Terms</a></li>
+          </ul>
+        </nav>
+
+        <!-- Copyright -->
+        <p class="mt-12 md:mt-14 text-xs text-neutral-500">
+          © {currentYear} Cyphral · Made in London
+        </p>
+
       </div>
     </footer>
 

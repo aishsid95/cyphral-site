@@ -8,7 +8,7 @@
 
 @theme {
   /* === Navy palette ===
-   * Primary brand colour. 500 is the canonical "navy" (#1A365D).
+   * Primary brand colour. 500 is the canonical "navy" (#182A3B).
    * 950 is the deep accent reserved for footers / extra contrast surfaces.
    */
   --color-navy-50: #EEF2F7;
@@ -16,28 +16,28 @@
   --color-navy-200: #ADBDD3;
   --color-navy-300: #7E94B4;
   --color-navy-400: #4F6B8E;
-  --color-navy-500: #1A365D;   /* primary brand navy */
+  --color-navy-500: #182A3B;   /* primary brand navy */
   --color-navy-600: #162E50;
   --color-navy-700: #122642;
   --color-navy-800: #0E1D34;
-  --color-navy-900: #0B1B2B;   /* deep accent (formerly --color-navy-deep) */
+  --color-navy-900: #12202E;   /* deep accent */
   --color-navy-950: #060E18;
 
-  /* === Turquoise accent palette ===
+  /* === Maroon accent palette ===
    * Used sparingly: hover states, links, accent rules, the founding-client badge.
-   * 500 is canonical accent (#0EA5A4). Pairs with navy 500 at AA contrast on off-white.
+   * 700 is canonical accent (#5C2331). 300 (dusty rose) for soft tinted backgrounds.
    */
-  --color-turquoise-50: #ECFDFC;
-  --color-turquoise-100: #CFFAF8;
-  --color-turquoise-200: #A0F2EE;
-  --color-turquoise-300: #66E4DE;
-  --color-turquoise-400: #2FCEC8;
-  --color-turquoise-500: #0EA5A4;   /* primary accent */
-  --color-turquoise-600: #0B8483;
-  --color-turquoise-700: #0A6967;
-  --color-turquoise-800: #0A5453;
-  --color-turquoise-900: #094645;
-  --color-turquoise-950: #042625;
+  --color-maroon-50: #FBF1F2;
+  --color-maroon-100: #F4D9DC;
+  --color-maroon-200: #E9B5BB;
+  --color-maroon-300: #D2AAAD;   /* dusty rose — soft tinted backgrounds */
+  --color-maroon-400: #B5666E;
+  --color-maroon-500: #95343F;   /* mid maroon — hover/active states */
+  --color-maroon-600: #7A2934;
+  --color-maroon-700: #5C2331;   /* primary accent — CTAs, eyebrow text */
+  --color-maroon-800: #461A26;
+  --color-maroon-900: #2E121A;
+  --color-maroon-950: #1A0810;
 
   /* === Neutral palette ===
    * Off-white background and warm-leaning grays for text, borders, dividers.
@@ -115,10 +115,11 @@
   --color-border-strong: var(--color-neutral-300);
   --color-brand: var(--color-navy-500);
   --color-brand-deep: var(--color-navy-900);
-  --color-accent: var(--color-turquoise-500);
-  --color-accent-hover: var(--color-turquoise-600);
-  --color-link: var(--color-turquoise-700);
-  --color-link-hover: var(--color-turquoise-500);
+  --color-accent: var(--color-maroon-700);
+  --color-accent-hover: var(--color-maroon-500);
+  --color-accent-soft: var(--color-maroon-300);
+  --color-link: var(--color-maroon-700);
+  --color-link-hover: var(--color-maroon-500);
 }
 
 /* ===== Switzer self-hosted faces (must come AFTER @theme) ===== */

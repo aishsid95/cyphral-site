@@ -1,0 +1,124 @@
+---
+import { getCollection, render } from 'astro:content';
+import Layout from '../../layouts/Layout.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog');
+  return posts.map((post) => ({
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+
+const formattedDate = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+}).format(post.data.pubDate);
+---
+
+<Layout title={post.data.title} description={post.data.description}>
+  <article class="mx-auto max-w-2xl px-6 md:px-12 lg:px-16 py-16 md:py-24">
+    <a href="/insights" class="inline-block text-sm text-maroon-700 hover:text-maroon-500 mb-12">
+      ← Back to Insights
+    </a>
+
+    <header class="mb-12">
+      <h1 class="font-display text-3xl md:text-5xl font-semibold text-navy-900 leading-tight tracking-tight">
+        {post.data.title}
+      </h1>
+      <p class="mt-6 text-sm text-neutral-600">
+        By {post.data.author} · {formattedDate} · {post.data.readingTime}
+      </p>
+    </header>
+
+    <div class="post-body">
+      <Content />
+    </div>
+  </article>
+</Layout>
+
+<style is:global>
+  .post-body {
+    color: #1A1A1A;
+    font-size: 1.0625rem;
+    line-height: 1.7;
+  }
+  .post-body p {
+    margin-block: 1.25rem;
+  }
+  .post-body h2 {
+    font-family: var(--font-display, 'Switzer', system-ui, sans-serif);
+    font-size: 1.625rem;
+    font-weight: 600;
+    color: #12202E;
+    margin-top: 3rem;
+    margin-bottom: 1rem;
+    letter-spacing: -0.01em;
+  }
+  .post-body h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #12202E;
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+  }
+  .post-body strong {
+    color: #12202E;
+    font-weight: 600;
+  }
+  .post-body em {
+    font-style: italic;
+  }
+  .post-body a {
+    color: #5C2331;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+  }
+  .post-body a:hover {
+    color: #95343F;
+  }
+  .post-body ul, .post-body ol {
+    margin-block: 1.25rem;
+    padding-left: 1.5rem;
+  }
+  .post-body ul { list-style: disc; }
+  .post-body ol { list-style: decimal; }
+  .post-body li {
+    margin-block: 0.5rem;
+  }
+  .post-body li > p { margin-block: 0.25rem; }
+  .post-body hr {
+    margin-block: 3rem;
+    border: 0;
+    border-top: 1px solid #E5E5E5;
+  }
+  .post-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-block: 1.5rem;
+    font-size: 0.9375rem;
+  }
+  .post-body th, .post-body td {
+    border: 1px solid #E5E5E5;
+    padding: 0.625rem 0.875rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  .post-body th {
+    background: #FBF1F2;
+    font-weight: 600;
+    color: #12202E;
+  }
+  .post-body blockquote {
+    border-left: 3px solid #5C2331;
+    padding-left: 1rem;
+    margin-block: 1.5rem;
+    color: #555;
+    font-style: italic;
+  }
+</style>

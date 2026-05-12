@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 540" role="img" aria-labelledby="chart1-title chart1-desc" preserveAspectRatio="xMidYMid meet" font-family="'Switzer', system-ui, sans-serif">
+  <title id="chart1-title">Cyber breach rate by UK business size, 2025/2026</title>
+  <desc id="chart1-desc">Vertical bar chart: micro businesses 42 percent, small 46 percent, medium 65 percent, large 69 percent.</desc>
+
+  <rect width="800" height="540" fill="#FAFAF7"/>
+
+  <text x="40" y="52" font-size="22" font-weight="600" fill="#12202E">Cyber breach rate by UK business size</text>
+  <text x="40" y="78" font-size="14" fill="#5F5E5A">% of businesses experiencing a breach or attack, last 12 months</text>
+
+  <line x1="100" y1="430" x2="760" y2="430" stroke="#1A1A1A" stroke-width="1"/>
+  <line x1="100" y1="354" x2="760" y2="354" stroke="#E0E0E0" stroke-width="1" stroke-dasharray="3,3"/>
+  <line x1="100" y1="278" x2="760" y2="278" stroke="#E0E0E0" stroke-width="1" stroke-dasharray="3,3"/>
+  <line x1="100" y1="202" x2="760" y2="202" stroke="#E0E0E0" stroke-width="1" stroke-dasharray="3,3"/>
+  <line x1="100" y1="126" x2="760" y2="126" stroke="#E0E0E0" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <text x="90" y="435" font-size="12" fill="#888" text-anchor="end">0%</text>
+  <text x="90" y="359" font-size="12" fill="#888" text-anchor="end">20%</text>
+  <text x="90" y="283" font-size="12" fill="#888" text-anchor="end">40%</text>
+  <text x="90" y="207" font-size="12" fill="#888" text-anchor="end">60%</text>
+  <text x="90" y="131" font-size="12" fill="#888" text-anchor="end">80%</text>
+
+  <rect x="135" y="270" width="130" height="160" fill="#182A3B"/>
+  <rect x="300" y="255" width="130" height="175" fill="#182A3B"/>
+  <rect x="465" y="183" width="130" height="247" fill="#182A3B"/>
+  <rect x="630" y="168" width="130" height="262" fill="#182A3B"/>
+
+  <text x="200" y="258" font-size="18" font-weight="600" fill="#12202E" text-anchor="middle">42%</text>
+  <text x="365" y="243" font-size="18" font-weight="600" fill="#12202E" text-anchor="middle">46%</text>
+  <text x="530" y="171" font-size="18" font-weight="600" fill="#12202E" text-anchor="middle">65%</text>
+  <text x="695" y="156" font-size="18" font-weight="600" fill="#12202E" text-anchor="middle">69%</text>
+
+  <text x="200" y="458" font-size="14" font-weight="500" fill="#1A1A1A" text-anchor="middle">Micro</text>
+  <text x="200" y="478" font-size="12" fill="#5F5E5A" text-anchor="middle">1–9 employees</text>
+  <text x="365" y="458" font-size="14" font-weight="500" fill="#1A1A1A" text-anchor="middle">Small</text>
+  <text x="365" y="478" font-size="12" fill="#5F5E5A" text-anchor="middle">10–49</text>
+  <text x="530" y="458" font-size="14" font-weight="500" fill="#1A1A1A" text-anchor="middle">Medium</text>
+  <text x="530" y="478" font-size="12" fill="#5F5E5A" text-anchor="middle">50–249</text>
+  <text x="695" y="458" font-size="14" font-weight="500" fill="#1A1A1A" text-anchor="middle">Large</text>
+  <text x="695" y="478" font-size="12" fill="#5F5E5A" text-anchor="middle">250+</text>
+
+  <text x="40" y="520" font-size="11" fill="#888">Source: DSIT Cyber Security Breaches Survey 2025/2026, published 30 April 2026</text>
+</svg>

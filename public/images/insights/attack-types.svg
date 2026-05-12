@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 380" role="img" aria-labelledby="chart2-title chart2-desc" preserveAspectRatio="xMidYMid meet" font-family="'Switzer', system-ui, sans-serif">
+  <title id="chart2-title">Attack types experienced by UK businesses, 2025/2026</title>
+  <desc id="chart2-desc">Horizontal bar chart: phishing 38 percent in maroon, impersonation 12 percent in navy, ransomware 1 percent in navy.</desc>
+
+  <rect width="800" height="380" fill="#FAFAF7"/>
+
+  <text x="40" y="52" font-size="22" font-weight="600" fill="#12202E">What UK businesses are being hit by</text>
+  <text x="40" y="78" font-size="14" fill="#5F5E5A">% of all UK businesses experiencing each attack type, last 12 months</text>
+
+  <rect x="200" y="105" width="380" height="40" fill="#5C2331"/>
+  <text x="190" y="131" font-size="14" font-weight="500" fill="#1A1A1A" text-anchor="end">Phishing</text>
+  <text x="590" y="131" font-size="18" font-weight="600" fill="#5C2331">38%</text>
+
+  <rect x="200" y="175" width="120" height="40" fill="#182A3B"/>
+  <text x="190" y="201" font-size="14" font-weight="500" fill="#1A1A1A" text-anchor="end">Impersonation</text>
+  <text x="330" y="201" font-size="18" font-weight="600" fill="#12202E">12%</text>
+
+  <rect x="200" y="245" width="10" height="40" fill="#182A3B"/>
+  <text x="190" y="271" font-size="14" font-weight="500" fill="#1A1A1A" text-anchor="end">Ransomware</text>
+  <text x="220" y="271" font-size="18" font-weight="600" fill="#12202E">1%</text>
+
+  <text x="40" y="350" font-size="11" fill="#888">Source: DSIT Cyber Security Breaches Survey 2025/2026, published 30 April 2026</text>
+</svg>

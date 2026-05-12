@@ -2,7 +2,7 @@
 title: "Why UK SMEs are being asked about Cyber Essentials"
 description: "What the latest DSIT data shows about UK cyber breaches, and why supply chain pressure is pulling small businesses into Cyber Essentials certification."
 pubDate: 2026-05-12
-author: "Aisha Siddiqua"
+author: "Aisha"
 tags: ["cyber-essentials", "sme", "uk-cyber-policy"]
 readingTime: "8 min read"
 ---

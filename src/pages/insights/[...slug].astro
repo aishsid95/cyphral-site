@@ -21,9 +21,13 @@ const formattedDate = new Intl.DateTimeFormat('en-GB', {
 ---
 
 <Layout title={post.data.title} description={post.data.description}>
-  <article class="mx-auto max-w-2xl px-6 md:px-12 lg:px-16 py-16 md:py-24">
-    <a href="/insights" class="inline-block text-sm text-maroon-700 hover:text-maroon-500 mb-12">
-      ← Back to Insights
+  <article class="mx-auto max-w-3xl px-6 md:px-10 py-16 md:py-24">
+    <a
+      href="/insights"
+      class="inline-flex items-center gap-2 text-sm text-maroon-700 hover:text-maroon-500 mb-12 whitespace-nowrap w-fit no-underline"
+    >
+      <span aria-hidden="true">←</span>
+      <span>Back to Insights</span>
     </a>
 
     <header class="mb-12">
@@ -46,6 +50,12 @@ const formattedDate = new Intl.DateTimeFormat('en-GB', {
     color: #1A1A1A;
     font-size: 1.0625rem;
     line-height: 1.7;
+  }
+  .post-body p,
+  .post-body li {
+    text-align: justify;
+    hyphens: auto;
+    -webkit-hyphens: auto;
   }
   .post-body p {
     margin-block: 1.25rem;

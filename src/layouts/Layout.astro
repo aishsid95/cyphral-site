@@ -35,6 +35,10 @@ const {
 const fullTitle = suppressTitleSuffix ? title : `${title} — Cyphral`;
 const canonicalUrl = canonical ?? new URL(Astro.url.pathname, Astro.site ?? "https://cyphral.co.uk").toString();
 const currentYear = new Date().getFullYear();
+
+const pathname = Astro.url.pathname;
+const isActive = (path: string) =>
+  pathname === path || pathname.startsWith(path + "/");
 ---
 
 <!doctype html>
@@ -105,9 +109,21 @@ const currentYear = new Date().getFullYear();
         </a>
 
         <nav aria-label="Primary" class="flex items-center gap-6 md:gap-8 text-base">
-          <a href="/insights" class="text-neutral-700 hover:text-navy-500 transition-colors">Insights</a>
-          <a href="/services" class="text-neutral-700 hover:text-navy-500 transition-colors">Services</a>
-          <a href="/about" class="text-neutral-700 hover:text-navy-500 transition-colors">About</a>
+          <a
+            href="/insights"
+            aria-current={isActive("/insights") ? "page" : undefined}
+            class:list={["transition-colors", isActive("/insights") ? "text-navy-500 font-medium" : "text-neutral-700 hover:text-navy-500"]}
+          >Insights</a>
+          <a
+            href="/services"
+            aria-current={isActive("/services") ? "page" : undefined}
+            class:list={["transition-colors", isActive("/services") ? "text-navy-500 font-medium" : "text-neutral-700 hover:text-navy-500"]}
+          >Services</a>
+          <a
+            href="/about"
+            aria-current={isActive("/about") ? "page" : undefined}
+            class:list={["transition-colors", isActive("/about") ? "text-navy-500 font-medium" : "text-neutral-700 hover:text-navy-500"]}
+          >About</a>
           <a
             href="/contact"
             class="inline-flex items-center px-4 py-1.5 leading-none rounded-md bg-navy-500 text-neutral-50 hover:bg-navy-600 transition-colors text-sm md:text-base"

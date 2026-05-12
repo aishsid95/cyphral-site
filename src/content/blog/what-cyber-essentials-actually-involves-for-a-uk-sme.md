@@ -2,7 +2,7 @@
 title: "What Cyber Essentials actually involves for a UK SME"
 description: "A plain-language guide to the five technical controls, the certification process, and what to expect in time and cost — written for the SME owner who has just heard of Cyber Essentials."
 pubDate: 2026-05-12
-author: "Aisha Siddiqua"
+author: "Aisha"
 tags: ["cyber-essentials", "sme", "compliance"]
 readingTime: "7 min read"
 ---

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 540" role="img" aria-labelledby="ce-title ce-desc" preserveAspectRatio="xMidYMid meet" font-family="'Switzer', system-ui, sans-serif">
+  <title id="ce-title">The Cyber Essentials readiness sprint</title>
+  <desc id="ce-desc">Four-step process: scope the environment, audit against the five technical controls, remediate the gaps, submit a clean IASME application.</desc>
+
+  <rect width="400" height="540" fill="#FAFAF7"/>
+
+  <text x="20" y="32" font-size="16" font-weight="600" fill="#12202E">The CE readiness sprint</text>
+  <line x1="20" y1="48" x2="380" y2="48" stroke="#E0E0E0"/>
+
+  <rect x="20" y="80" width="360" height="80" fill="none" stroke="#182A3B" stroke-width="1.5" rx="4"/>
+  <text x="40" y="106" font-size="11" font-weight="600" fill="#5C2331" letter-spacing="0.1em">01</text>
+  <text x="40" y="126" font-size="16" font-weight="600" fill="#12202E">Scope</text>
+  <text x="40" y="146" font-size="12" fill="#5F5E5A">Environment, devices, cloud services</text>
+
+  <line x1="200" y1="160" x2="200" y2="174" stroke="#182A3B" stroke-width="1.5"/>
+  <polygon points="194,174 200,184 206,174" fill="#182A3B"/>
+
+  <rect x="20" y="200" width="360" height="80" fill="none" stroke="#182A3B" stroke-width="1.5" rx="4"/>
+  <text x="40" y="226" font-size="11" font-weight="600" fill="#5C2331" letter-spacing="0.1em">02</text>
+  <text x="40" y="246" font-size="16" font-weight="600" fill="#12202E">Audit</text>
+  <text x="40" y="266" font-size="12" fill="#5F5E5A">Against the five CE technical controls</text>
+
+  <line x1="200" y1="280" x2="200" y2="294" stroke="#182A3B" stroke-width="1.5"/>
+  <polygon points="194,294 200,304 206,294" fill="#182A3B"/>
+
+  <rect x="20" y="320" width="360" height="80" fill="none" stroke="#182A3B" stroke-width="1.5" rx="4"/>
+  <text x="40" y="346" font-size="11" font-weight="600" fill="#5C2331" letter-spacing="0.1em">03</text>
+  <text x="40" y="366" font-size="16" font-weight="600" fill="#12202E">Remediate</text>
+  <text x="40" y="386" font-size="12" fill="#5F5E5A">Fix the gaps, supported step by step</text>
+
+  <line x1="200" y1="400" x2="200" y2="414" stroke="#182A3B" stroke-width="1.5"/>
+  <polygon points="194,414 200,424 206,414" fill="#182A3B"/>
+
+  <rect x="20" y="440" width="360" height="80" fill="none" stroke="#182A3B" stroke-width="1.5" rx="4"/>
+  <text x="40" y="466" font-size="11" font-weight="600" fill="#5C2331" letter-spacing="0.1em">04</text>
+  <text x="40" y="486" font-size="16" font-weight="600" fill="#12202E">Submit</text>
+  <text x="40" y="506" font-size="12" fill="#5F5E5A">Clean IASME submission, ready for assessment</text>
+</svg>

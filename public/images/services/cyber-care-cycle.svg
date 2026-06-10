@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 540" role="img" aria-labelledby="care-title care-desc" preserveAspectRatio="xMidYMid meet" font-family="'Switzer', system-ui, sans-serif">
+  <title id="care-title">The Cyber Care cycle</title>
+  <desc id="care-desc">A four-step monthly cycle that repeats: monitor patches and vulnerabilities, maintain by applying patches and refreshing policies, respond when incidents occur, report quarterly.</desc>
+
+  <rect width="420" height="540" fill="#FAFAF7"/>
+
+  <text x="20" y="32" font-size="16" font-weight="600" fill="#12202E">The Cyber Care cycle</text>
+  <line x1="20" y1="48" x2="380" y2="48" stroke="#E0E0E0"/>
+
+  <rect x="20" y="80" width="340" height="80" fill="none" stroke="#182A3B" stroke-width="1.5" rx="4"/>
+  <text x="40" y="106" font-size="11" font-weight="600" fill="#5C2331" letter-spacing="0.1em">01</text>
+  <text x="40" y="126" font-size="16" font-weight="600" fill="#12202E">Monitor</text>
+  <text x="40" y="146" font-size="12" fill="#5F5E5A">Patches, vulnerabilities, scheme updates</text>
+
+  <line x1="190" y1="160" x2="190" y2="174" stroke="#182A3B" stroke-width="1.5"/>
+  <polygon points="184,174 190,184 196,174" fill="#182A3B"/>
+
+  <rect x="20" y="200" width="340" height="80" fill="none" stroke="#182A3B" stroke-width="1.5" rx="4"/>
+  <text x="40" y="226" font-size="11" font-weight="600" fill="#5C2331" letter-spacing="0.1em">02</text>
+  <text x="40" y="246" font-size="16" font-weight="600" fill="#12202E">Maintain</text>
+  <text x="40" y="266" font-size="12" fill="#5F5E5A">Apply patches, refresh policies and evidence</text>
+
+  <line x1="190" y1="280" x2="190" y2="294" stroke="#182A3B" stroke-width="1.5"/>
+  <polygon points="184,294 190,304 196,294" fill="#182A3B"/>
+
+  <rect x="20" y="320" width="340" height="80" fill="none" stroke="#182A3B" stroke-width="1.5" rx="4"/>
+  <text x="40" y="346" font-size="11" font-weight="600" fill="#5C2331" letter-spacing="0.1em">03</text>
+  <text x="40" y="366" font-size="16" font-weight="600" fill="#12202E">Respond</text>
+  <text x="40" y="386" font-size="12" fill="#5F5E5A">Incident triage when something goes wrong</text>
+
+  <line x1="190" y1="400" x2="190" y2="414" stroke="#182A3B" stroke-width="1.5"/>
+  <polygon points="184,414 190,424 196,414" fill="#182A3B"/>
+
+  <rect x="20" y="440" width="340" height="80" fill="none" stroke="#182A3B" stroke-width="1.5" rx="4"/>
+  <text x="40" y="466" font-size="11" font-weight="600" fill="#5C2331" letter-spacing="0.1em">04</text>
+  <text x="40" y="486" font-size="16" font-weight="600" fill="#12202E">Report</text>
+  <text x="40" y="506" font-size="12" fill="#5F5E5A">Quarterly review and written summary</text>
+
+  <!-- Cycle return curve (dashed, maroon) -->
+  <path d="M 360 480 C 410 480 410 120 360 120" fill="none" stroke="#5C2331" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <polygon points="350,120 360,114 360,126" fill="#5C2331"/>
+</svg>

@@ -1,0 +1,203 @@
+---
+import Layout from '../layouts/Layout.astro';
+import FoundingClientBanner from '../components/FoundingClientBanner.astro';
+import pricing from '../data/pricing.json';
+
+const ceReadiness = pricing.ceReadinessSprint;
+const ceRenewal   = pricing.ceAnnualRenewal;
+const careSmall   = pricing.cyberCareSmall;
+const careMid     = pricing.cyberCareMid;
+const autoWorkflow = pricing.automationWorkflow;
+const autoHourly  = pricing.automationHourly;
+---
+
+<Layout
+  title="Services for UK SMEs"
+  description="Three services for UK small businesses: Cyber Essentials readiness, ongoing Cyber Care, and security automation. Each with a clear scope, a clear price, and a clear ending."
+>
+
+  <!-- HERO -->
+  <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 pt-16 md:pt-28 pb-12 md:pb-16">
+    <div class="max-w-5xl mx-auto">
+      <p class="text-xs font-medium tracking-[0.18em] uppercase text-maroon-700">Services</p>
+      <h1 class="mt-6 font-display text-4xl md:text-6xl lg:text-7xl font-semibold text-navy-900 leading-[1.05] tracking-tight">
+        What Cyphral does.
+      </h1>
+      <p class="mt-8 text-lg md:text-xl text-neutral-700 leading-relaxed text-justify hyphens-auto max-w-3xl">
+        Three core services for UK small businesses: Cyber Essentials readiness, ongoing Cyber Care, and security automation. Each with a clear scope, a clear price, and a clear ending.
+      </p>
+    </div>
+  </section>
+
+  <!-- CATEGORY 1: CYBER ESSENTIALS (figure left, text right on desktop) -->
+  <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 py-16 md:py-24 border-t border-neutral-200">
+    <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-12 lg:gap-16 items-start">
+      <div>
+        <img src="/images/services/ce-readiness-flow.svg" alt="The Cyber Essentials readiness sprint: scope, audit, remediate, submit." class="w-full h-auto" />
+      </div>
+      <div class="space-y-10">
+        <header>
+          <h2 class="font-display text-3xl md:text-4xl font-semibold text-navy-900 leading-tight tracking-tight">Cyber Essentials</h2>
+          <p class="mt-4 text-base md:text-lg text-neutral-700 leading-relaxed text-justify hyphens-auto">
+            The UK government-backed cyber security certification scheme. We prepare your business for the IASME assessment by scoping your environment, auditing against the five technical controls, guiding remediation, and producing a clean submission. We don't certify; IASME and accredited Certification Bodies do.
+          </p>
+        </header>
+
+        <div>
+          <h3 class="font-display text-xl md:text-2xl font-semibold text-navy-900 leading-tight">Cyber Essentials Readiness Sprint</h3>
+          <p class="mt-3 text-base text-neutral-700 leading-relaxed text-justify hyphens-auto">
+            Two-week intensive preparation for your first Cyber Essentials certification. We handle the readiness journey end-to-end: scope your IT environment, audit it against the requirements, guide remediation of any gaps, and prepare your IASME Question Set submission.
+          </p>
+          <ul class="mt-4 space-y-1.5 text-base text-neutral-700">
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Initial scope review and environment mapping</span></li>
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Gap analysis against all five CE technical controls</span></li>
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Remediation guidance and hands-on support where needed</span></li>
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>IASME Question Set drafted and reviewed before submission</span></li>
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>One round of revisions after assessor feedback</span></li>
+          </ul>
+          <p class="mt-5 text-2xl font-display font-semibold text-navy-900">From £{ceReadiness.listed}</p>
+          <p class="mt-1 text-sm text-maroon-700">Founding client offer: from £{ceReadiness.founding}</p>
+          <p class="mt-4 text-sm text-neutral-600 italic">
+            The IASME assessment fee (currently £320+VAT for micro businesses) is paid separately to the certification body. It is not included in our fee.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="font-display text-xl md:text-2xl font-semibold text-navy-900 leading-tight">Cyber Essentials Renewal</h3>
+          <p class="mt-3 text-base text-neutral-700 leading-relaxed text-justify hyphens-auto">
+            A streamlined version of the same flow for businesses with existing CE certification approaching renewal. Most of your controls are already in place. We focus on what has changed since last year and on any new requirements from updated scheme versions.
+          </p>
+          <ul class="mt-4 space-y-1.5 text-base text-neutral-700">
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Review of previous year's submission</span></li>
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Check against the current scheme version (v3.3, April 2026)</span></li>
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Updates to evidence and Question Set</span></li>
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Submission of renewal application</span></li>
+          </ul>
+          <p class="mt-5 text-2xl font-display font-semibold text-navy-900">From £{ceRenewal.listed}</p>
+          <p class="mt-1 text-sm text-maroon-700">Founding client offer: from £{ceRenewal.founding}</p>
+          <p class="mt-4 text-sm text-neutral-600 italic">IASME assessment fee paid separately, as above.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CATEGORY 2: CYBER CARE (figure right, text left on desktop; figure first in mobile source) -->
+  <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 py-16 md:py-24 border-t border-neutral-200">
+    <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-12 lg:gap-16 items-start">
+      <div class="md:order-2">
+        <img src="/images/services/cyber-care-cycle.svg" alt="The Cyber Care cycle: monitor, maintain, respond, report, then repeat." class="w-full h-auto" />
+      </div>
+      <div class="space-y-10 md:order-1">
+        <header>
+          <h2 class="font-display text-3xl md:text-4xl font-semibold text-navy-900 leading-tight tracking-tight">Cyber Care</h2>
+          <p class="mt-4 text-base md:text-lg text-neutral-700 leading-relaxed text-justify hyphens-auto">
+            Ongoing cyber security support for businesses that don't have an in-house team. A monthly retainer keeps your security posture current between major projects. Patches reviewed and applied, incidents triaged, policies kept up to date, advisory work when you need it.
+          </p>
+        </header>
+
+        <div>
+          <h3 class="font-display text-xl md:text-2xl font-semibold text-navy-900 leading-tight">Cyber Care — Small</h3>
+          <p class="mt-3 text-base text-neutral-700 leading-relaxed text-justify hyphens-auto">
+            Monthly support for micro businesses (up to 10 employees). Patches reviewed, incidents triaged, quarterly security posture review, and email support during UK business hours.
+          </p>
+          <ul class="mt-4 space-y-1.5 text-base text-neutral-700">
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Monthly patch review and application guidance</span></li>
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Incident triage and response guidance</span></li>
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Quarterly security posture review and written summary</span></li>
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Email support during business hours</span></li>
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Annual CE renewal preparation included</span></li>
+          </ul>
+          <p class="mt-5 text-2xl font-display font-semibold text-navy-900">£{careSmall.listed}/month</p>
+          <p class="mt-1 text-sm text-maroon-700">Founding client offer: £{careSmall.founding}/month</p>
+        </div>
+
+        <div>
+          <h3 class="font-display text-xl md:text-2xl font-semibold text-navy-900 leading-tight">Cyber Care — Mid</h3>
+          <p class="mt-3 text-base text-neutral-700 leading-relaxed text-justify hyphens-auto">
+            Monthly support for small businesses (10 to 50 employees). Everything in Small, plus proactive vulnerability monitoring, faster response times, and one defined improvement project per quarter.
+          </p>
+          <ul class="mt-4 space-y-1.5 text-base text-neutral-700">
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Everything in Cyber Care — Small</span></li>
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Proactive vulnerability monitoring on critical systems</span></li>
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Same-business-day response on incidents</span></li>
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>One quarterly improvement project</span></li>
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Quarterly leadership briefing</span></li>
+          </ul>
+          <p class="mt-5 text-2xl font-display font-semibold text-navy-900">£{careMid.listed}/month</p>
+          <p class="mt-1 text-sm text-maroon-700">Founding client offer: £{careMid.founding}/month</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CATEGORY 3: AUTOMATION (figure left, text right on desktop) -->
+  <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 py-16 md:py-24 border-t border-neutral-200">
+    <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-12 lg:gap-16 items-start">
+      <div>
+        <img src="/images/services/automation-flow.svg" alt="An automation project: discover, scope, build, hand over." class="w-full h-auto" />
+      </div>
+      <div class="space-y-10">
+        <header>
+          <h2 class="font-display text-3xl md:text-4xl font-semibold text-navy-900 leading-tight tracking-tight">Automation</h2>
+          <p class="mt-4 text-base md:text-lg text-neutral-700 leading-relaxed text-justify hyphens-auto">
+            Custom automation work for SMEs with repetitive operational or security tasks that consume staff time. We build small, focused automations (Python scripts, CI/CD pipelines, integrations between business tools) and hand them over with documentation so your team can run and extend them.
+          </p>
+        </header>
+
+        <div>
+          <h3 class="font-display text-xl md:text-2xl font-semibold text-navy-900 leading-tight">Automation Workflow</h3>
+          <p class="mt-3 text-base text-neutral-700 leading-relaxed text-justify hyphens-auto">
+            A one-off automation project, scoped and delivered in one engagement. Typical work: automating compliance reporting, integrating two tools so data flows between them, building a scheduled security check script. Scope is defined upfront and doesn't drift mid-project.
+          </p>
+          <ul class="mt-4 space-y-1.5 text-base text-neutral-700">
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Discovery call to understand the problem</span></li>
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Scoped written proposal with deliverables and timeline</span></li>
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Build, test, and validate</span></li>
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Documentation so your team can maintain or extend</span></li>
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>One round of revisions after handover</span></li>
+          </ul>
+          <p class="mt-5 text-2xl font-display font-semibold text-navy-900">From £{autoWorkflow.listed}</p>
+          <p class="mt-1 text-sm text-maroon-700">Founding client offer: from £{autoWorkflow.founding}</p>
+        </div>
+
+        <div>
+          <h3 class="font-display text-xl md:text-2xl font-semibold text-navy-900 leading-tight">Automation Hourly</h3>
+          <p class="mt-3 text-base text-neutral-700 leading-relaxed text-justify hyphens-auto">
+            Flexible hourly rate for smaller automation tasks, follow-up work on existing automations, or exploratory consultation when the scope isn't clear yet. Minimum engagement: two hours.
+          </p>
+          <ul class="mt-4 space-y-1.5 text-base text-neutral-700">
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Hourly billing in 30-minute increments</span></li>
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Remote work via screen-share or async messaging</span></li>
+            <li class="flex gap-3"><span class="text-maroon-700 font-bold">·</span><span>Documentation of any code or configuration produced</span></li>
+          </ul>
+          <p class="mt-5 text-2xl font-display font-semibold text-navy-900">£{autoHourly.listed}/hour</p>
+          <p class="mt-1 text-sm text-maroon-700">Founding client offer: £{autoHourly.founding}/hour</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOUNDING BANNER -->
+  <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 py-16 md:py-24 border-t border-neutral-200">
+    <div class="max-w-5xl mx-auto">
+      <FoundingClientBanner />
+    </div>
+  </section>
+
+  <!-- CONTACT CTA -->
+  <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 py-16 md:py-24 border-t border-neutral-200">
+    <div class="max-w-5xl mx-auto">
+      <header class="mb-10">
+        <h2 class="font-display text-3xl md:text-4xl font-semibold text-navy-900 leading-tight tracking-tight">Not sure which?</h2>
+        <p class="mt-6 text-base md:text-lg text-neutral-700 leading-relaxed text-justify hyphens-auto">
+          If you've been asked about Cyber Essentials, or you have ongoing cyber security work that needs a steady hand, drop a line. We'll work out what level of help makes sense. We respond within 24 hours.
+        </p>
+      </header>
+      <div class="flex flex-col sm:flex-row gap-4 sm:gap-8 sm:items-center">
+        <a href="mailto:hello@cyphral.co.uk" class="inline-flex items-center text-base font-medium text-navy-900 hover:text-maroon-700 transition-colors">hello@cyphral.co.uk</a>
+        <a href="/contact" class="inline-flex items-center text-base text-maroon-700 hover:text-maroon-500 transition-colors">Send a message →</a>
+      </div>
+    </div>
+  </section>
+
+</Layout>

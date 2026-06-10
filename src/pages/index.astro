@@ -23,14 +23,14 @@ const formatDate = (date: Date) =>
 
   <!-- HERO -->
   <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 pt-16 md:pt-28 pb-12 md:pb-16">
-    <div class="max-w-3xl mx-auto">
+    <div class="max-w-5xl mx-auto">
       <p class="text-xs font-medium tracking-[0.18em] uppercase text-maroon-700">
         Cyber Essentials readiness
       </p>
       <h1 class="mt-6 font-display text-4xl md:text-6xl lg:text-7xl font-semibold text-navy-900 leading-[1.05] tracking-tight">
         A two-week sprint to Cyber Essentials certification.
       </h1>
-      <p class="mt-8 text-lg md:text-xl text-neutral-700 leading-relaxed">
+      <p class="mt-8 text-lg md:text-xl text-neutral-700 leading-relaxed text-justify hyphens-auto">
         Cyphral prepares UK SMEs for the assessment. We map your environment, fix the gaps, and produce a clean submission so your team can focus on running the business.
       </p>
       <div class="mt-10 flex flex-col sm:flex-row gap-4 sm:gap-6 sm:items-center">
@@ -52,21 +52,23 @@ const formatDate = (date: Date) =>
 
   <!-- FOUNDING BANNER -->
   <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 pb-16 md:pb-24">
-    <FoundingClientBanner variant="hero" />
+    <div class="max-w-5xl mx-auto">
+      <FoundingClientBanner variant="hero" />
+    </div>
   </section>
 
   <!-- INSIGHTS PREVIEW -->
   <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 py-16 md:py-24 border-t border-neutral-200">
-    <header class="max-w-2xl mb-12 mx-auto">
+    <header class="max-w-5xl mb-12 mx-auto">
       <h2 class="font-display text-3xl md:text-4xl font-semibold text-navy-900 leading-tight tracking-tight">
         Recent insights
       </h2>
-      <p class="mt-4 text-base md:text-lg text-neutral-700 leading-relaxed">
+      <p class="mt-4 text-base md:text-lg text-neutral-700 leading-relaxed text-justify hyphens-auto">
         Plain-language analysis of UK cyber security policy and what it means for small businesses trying to focus on running the business.
       </p>
     </header>
 
-    <ul class="space-y-12 max-w-3xl mx-auto">
+    <ul class="space-y-12 max-w-5xl mx-auto">
       {posts.map((post) => (
         <li>
           <a
@@ -90,7 +92,7 @@ const formatDate = (date: Date) =>
       ))}
     </ul>
 
-    <div class="mt-12 max-w-3xl mx-auto">
+    <div class="mt-12 max-w-5xl mx-auto">
       <a href="/insights" class="inline-flex items-center text-base font-medium text-maroon-700 hover:text-maroon-500 transition-colors">
         All insights →
       </a>
@@ -103,7 +105,7 @@ const formatDate = (date: Date) =>
       <h2 class="font-display text-3xl md:text-4xl font-semibold text-navy-900 leading-tight tracking-tight">
         What we do
       </h2>
-      <p class="mt-4 text-base md:text-lg text-neutral-700 leading-relaxed">
+      <p class="mt-4 text-base md:text-lg text-neutral-700 leading-relaxed text-justify hyphens-auto">
         Three core services. The full list is on the Services page.
       </p>
     </header>
@@ -136,13 +138,13 @@ const formatDate = (date: Date) =>
 
   <!-- ABOUT -->
   <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 py-16 md:py-24 border-t border-neutral-200">
-    <header class="max-w-2xl mb-10 mx-auto">
+    <header class="max-w-5xl mb-10 mx-auto">
       <h2 class="font-display text-3xl md:text-4xl font-semibold text-navy-900 leading-tight tracking-tight">
         About
       </h2>
     </header>
 
-    <div class="max-w-3xl mx-auto space-y-6 text-base md:text-lg text-neutral-800 leading-relaxed text-justify hyphens-auto">
+    <div class="max-w-5xl mx-auto space-y-6 text-base md:text-lg text-neutral-800 leading-relaxed text-justify hyphens-auto">
       <p>
         Hello! I am Aisha. I founded Cyphral after my MSc in Network and Information Security, where my dissertation focused on post-quantum cryptography. Before that, I worked in software development and automation: Python, DevOps, CI/CD work that taught me what actually changes a system's security posture and what just decorates it.
       </p>
@@ -154,7 +156,7 @@ const formatDate = (date: Date) =>
       </p>
     </div>
 
-    <div class="mt-10 max-w-3xl mx-auto">
+    <div class="mt-10 max-w-5xl mx-auto">
       <a href="/about" class="inline-flex items-center text-base font-medium text-maroon-700 hover:text-maroon-500 transition-colors">
         More about Cyphral →
       </a>
@@ -163,16 +165,16 @@ const formatDate = (date: Date) =>
 
   <!-- CONTACT -->
   <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 py-16 md:py-24 border-t border-neutral-200">
-    <header class="max-w-2xl mb-10 mx-auto">
+    <header class="max-w-5xl mb-10 mx-auto">
       <h2 class="font-display text-3xl md:text-4xl font-semibold text-navy-900 leading-tight tracking-tight">
         Get in touch
       </h2>
-      <p class="mt-6 text-base md:text-lg text-neutral-700 leading-relaxed">
+      <p class="mt-6 text-base md:text-lg text-neutral-700 leading-relaxed text-justify hyphens-auto">
         If you've been asked about Cyber Essentials, or you need a hand with ongoing cyber security work, drop a line. We respond within 24 hours.
       </p>
     </header>
 
-    <div class="flex flex-col sm:flex-row gap-4 sm:gap-8 sm:items-center max-w-3xl mx-auto">
+    <div class="flex flex-col sm:flex-row gap-4 sm:gap-8 sm:items-center max-w-5xl mx-auto">
       <a
         href="mailto:hello@cyphral.co.uk"
         class="inline-flex items-center text-base font-medium text-navy-900 hover:text-maroon-700 transition-colors"

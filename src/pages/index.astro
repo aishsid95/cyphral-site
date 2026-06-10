@@ -23,7 +23,7 @@ const formatDate = (date: Date) =>
 
   <!-- HERO -->
   <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 pt-16 md:pt-28 pb-12 md:pb-16">
-    <div class="max-w-3xl">
+    <div class="max-w-3xl mx-auto">
       <p class="text-xs font-medium tracking-[0.18em] uppercase text-maroon-700">
         Cyber Essentials readiness
       </p>
@@ -36,7 +36,7 @@ const formatDate = (date: Date) =>
       <div class="mt-10 flex flex-col sm:flex-row gap-4 sm:gap-6 sm:items-center">
         <a
           href="/insights/why-uk-smes-are-being-asked-about-cyber-essentials"
-          class="inline-flex items-center justify-center bg-navy-900 hover:bg-navy-700 text-off-white text-base font-medium px-6 py-3 rounded-md whitespace-nowrap transition-colors"
+          class="inline-flex items-center justify-center bg-navy-900 hover:bg-navy-700 text-white text-base font-medium px-6 py-3 rounded-md whitespace-nowrap transition-colors"
         >
           Why this matters →
         </a>
@@ -57,7 +57,7 @@ const formatDate = (date: Date) =>
 
   <!-- INSIGHTS PREVIEW -->
   <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 py-16 md:py-24 border-t border-neutral-200">
-    <header class="max-w-2xl mb-12">
+    <header class="max-w-2xl mb-12 mx-auto">
       <h2 class="font-display text-3xl md:text-4xl font-semibold text-navy-900 leading-tight tracking-tight">
         Recent insights
       </h2>
@@ -66,7 +66,7 @@ const formatDate = (date: Date) =>
       </p>
     </header>
 
-    <ul class="space-y-12 max-w-3xl">
+    <ul class="space-y-12 max-w-3xl mx-auto">
       {posts.map((post) => (
         <li>
           <a
@@ -90,7 +90,7 @@ const formatDate = (date: Date) =>
       ))}
     </ul>
 
-    <div class="mt-12 max-w-3xl">
+    <div class="mt-12 max-w-3xl mx-auto">
       <a href="/insights" class="inline-flex items-center text-base font-medium text-maroon-700 hover:text-maroon-500 transition-colors">
         All insights →
       </a>
@@ -99,7 +99,7 @@ const formatDate = (date: Date) =>
 
   <!-- SERVICES PREVIEW -->
   <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 py-16 md:py-24 border-t border-neutral-200">
-    <header class="max-w-2xl mb-12">
+    <header class="max-w-5xl mx-auto mb-12">
       <h2 class="font-display text-3xl md:text-4xl font-semibold text-navy-900 leading-tight tracking-tight">
         What we do
       </h2>
@@ -108,7 +108,7 @@ const formatDate = (date: Date) =>
       </p>
     </header>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 max-w-5xl mx-auto">
       <PriceBlock
         serviceKey="ceReadinessSprint"
         title="Cyber Essentials Readiness Sprint"
@@ -127,7 +127,7 @@ const formatDate = (date: Date) =>
       />
     </div>
 
-    <div class="mt-12">
+    <div class="mt-12 max-w-5xl mx-auto">
       <a href="/services" class="inline-flex items-center text-base font-medium text-maroon-700 hover:text-maroon-500 transition-colors">
         All services →
       </a>
@@ -136,13 +136,13 @@ const formatDate = (date: Date) =>
 
   <!-- ABOUT -->
   <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 py-16 md:py-24 border-t border-neutral-200">
-    <header class="max-w-2xl mb-10">
+    <header class="max-w-2xl mb-10 mx-auto">
       <h2 class="font-display text-3xl md:text-4xl font-semibold text-navy-900 leading-tight tracking-tight">
         About
       </h2>
     </header>
 
-    <div class="max-w-3xl space-y-6 text-base md:text-lg text-neutral-800 leading-relaxed text-justify hyphens-auto">
+    <div class="max-w-3xl mx-auto space-y-6 text-base md:text-lg text-neutral-800 leading-relaxed text-justify hyphens-auto">
       <p>
         Hello! I am Aisha. I founded Cyphral after my MSc in Network and Information Security, where my dissertation focused on post-quantum cryptography. Before that, I worked in software development and automation: Python, DevOps, CI/CD work that taught me what actually changes a system's security posture and what just decorates it.
       </p>
@@ -154,7 +154,7 @@ const formatDate = (date: Date) =>
       </p>
     </div>
 
-    <div class="mt-10 max-w-3xl">
+    <div class="mt-10 max-w-3xl mx-auto">
       <a href="/about" class="inline-flex items-center text-base font-medium text-maroon-700 hover:text-maroon-500 transition-colors">
         More about Cyphral →
       </a>
@@ -163,7 +163,7 @@ const formatDate = (date: Date) =>
 
   <!-- CONTACT -->
   <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 py-16 md:py-24 border-t border-neutral-200">
-    <header class="max-w-2xl mb-10">
+    <header class="max-w-2xl mb-10 mx-auto">
       <h2 class="font-display text-3xl md:text-4xl font-semibold text-navy-900 leading-tight tracking-tight">
         Get in touch
       </h2>
@@ -172,7 +172,7 @@ const formatDate = (date: Date) =>
       </p>
     </header>
 
-    <div class="flex flex-col sm:flex-row gap-4 sm:gap-8 sm:items-center max-w-3xl">
+    <div class="flex flex-col sm:flex-row gap-4 sm:gap-8 sm:items-center max-w-3xl mx-auto">
       <a
         href="mailto:hello@cyphral.co.uk"
         class="inline-flex items-center text-base font-medium text-navy-900 hover:text-maroon-700 transition-colors"

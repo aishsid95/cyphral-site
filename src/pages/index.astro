@@ -1,38 +1,191 @@
 ---
-import Layout from "../layouts/Layout.astro";
-import Wordmark from "../components/Wordmark.astro";
-import FoundingClientBanner from "../components/FoundingClientBanner.astro";
-import PriceBlock from "../components/PriceBlock.astro";
+import { getCollection } from 'astro:content';
+import Layout from '../layouts/Layout.astro';
+import FoundingClientBanner from '../components/FoundingClientBanner.astro';
+import PriceBlock from '../components/PriceBlock.astro';
+
+const posts = (await getCollection('blog'))
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
+  .slice(0, 2);
+
+const formatDate = (date: Date) =>
+  new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
 ---
 
 <Layout
-  title="Cybersecurity & automation for UK SMEs"
-  description="Cyphral helps UK small businesses prepare for Cyber Essentials certification, automate operations, and stay secure. Coming soon."
+  title="Cyphral — Cyber Essentials readiness for UK SMEs"
+  description="Cyphral prepares UK SMEs for the Cyber Essentials assessment. Two-week sprint to a clean submission. Focused, practical work for small businesses."
 >
-  <section class="py-12 md:py-20 text-center">
-    <Wordmark size="hero" as="h1" />
-    <p class="mt-8 text-lg md:text-xl text-neutral-700 max-w-md mx-auto leading-relaxed">
-      Cybersecurity and automation consultancy for UK small businesses. Coming soon.
-    </p>
+
+  <!-- HERO -->
+  <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 pt-16 md:pt-28 pb-12 md:pb-16">
+    <div class="max-w-3xl">
+      <p class="text-xs font-medium tracking-[0.18em] uppercase text-maroon-700">
+        Cyber Essentials readiness
+      </p>
+      <h1 class="mt-6 font-display text-4xl md:text-6xl lg:text-7xl font-semibold text-navy-900 leading-[1.05] tracking-tight">
+        A two-week sprint to Cyber Essentials certification.
+      </h1>
+      <p class="mt-8 text-lg md:text-xl text-neutral-700 leading-relaxed">
+        Cyphral prepares UK SMEs for the assessment. We map your environment, fix the gaps, and produce a clean submission so your team can focus on running the business.
+      </p>
+      <div class="mt-10 flex flex-col sm:flex-row gap-4 sm:gap-6 sm:items-center">
+        <a
+          href="/insights/why-uk-smes-are-being-asked-about-cyber-essentials"
+          class="inline-flex items-center justify-center bg-navy-900 hover:bg-navy-700 text-off-white text-base font-medium px-6 py-3 rounded-md whitespace-nowrap transition-colors"
+        >
+          Why this matters →
+        </a>
+        <a
+          href="/services"
+          class="inline-flex items-center text-base text-maroon-700 hover:text-maroon-500 transition-colors"
+        >
+          See services
+        </a>
+      </div>
+    </div>
   </section>
 
-  <section class="pb-16 md:pb-24">
+  <!-- FOUNDING BANNER -->
+  <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 pb-16 md:pb-24">
     <FoundingClientBanner variant="hero" />
   </section>
 
-  <section class="pb-16 md:pb-24">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+  <!-- INSIGHTS PREVIEW -->
+  <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 py-16 md:py-24 border-t border-neutral-200">
+    <header class="max-w-2xl mb-12">
+      <h2 class="font-display text-3xl md:text-4xl font-semibold text-navy-900 leading-tight tracking-tight">
+        Recent insights
+      </h2>
+      <p class="mt-4 text-base md:text-lg text-neutral-700 leading-relaxed">
+        Plain-language analysis of UK cyber security policy and what it means for small businesses trying to focus on running the business.
+      </p>
+    </header>
+
+    <ul class="space-y-12 max-w-3xl">
+      {posts.map((post) => (
+        <li>
+          <a
+            href={`/insights/${post.id}`}
+            class="group block border-t border-neutral-200 pt-8 hover:border-maroon-300 transition-colors"
+          >
+            <p class="text-xs text-neutral-600">
+              {formatDate(post.data.pubDate)} · {post.data.readingTime}
+            </p>
+            <h3 class="mt-3 font-display text-2xl md:text-3xl font-semibold text-navy-900 group-hover:text-maroon-700 transition-colors leading-tight">
+              {post.data.title}
+            </h3>
+            <p class="mt-3 text-base text-neutral-700 leading-relaxed">
+              {post.data.description}
+            </p>
+            <p class="mt-4 text-sm text-maroon-700 group-hover:text-maroon-500">
+              Read →
+            </p>
+          </a>
+        </li>
+      ))}
+    </ul>
+
+    <div class="mt-12 max-w-3xl">
+      <a href="/insights" class="inline-flex items-center text-base font-medium text-maroon-700 hover:text-maroon-500 transition-colors">
+        All insights →
+      </a>
+    </div>
+  </section>
+
+  <!-- SERVICES PREVIEW -->
+  <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 py-16 md:py-24 border-t border-neutral-200">
+    <header class="max-w-2xl mb-12">
+      <h2 class="font-display text-3xl md:text-4xl font-semibold text-navy-900 leading-tight tracking-tight">
+        What we do
+      </h2>
+      <p class="mt-4 text-base md:text-lg text-neutral-700 leading-relaxed">
+        Three core services. The full list is on the Services page.
+      </p>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
       <PriceBlock
         serviceKey="ceReadinessSprint"
         title="Cyber Essentials Readiness Sprint"
-        description="Two-week intensive preparation for the Cyber Essentials assessment. We scope your environment, analyse the gaps, guide you through remediation, and prepare a clear submission report."
+        description="Two-week sprint to map your environment, close the gaps, and produce a clean CE submission."
         showIasmeDisclosure={true}
       />
       <PriceBlock
+        serviceKey="cyberCareSmall"
+        title="Cyber Care — Small"
+        description="Monthly retainer for ongoing cyber security support. Patch reviews, incident guidance, and policy upkeep."
+      />
+      <PriceBlock
         serviceKey="automationWorkflow"
-        title="Automation & integration"
-        description="We build one-off automations to take repetitive work off your plate. Manual tasks you keep doing, tools that need syncing, weekly reports you'd rather not assemble by hand."
+        title="Automation Workflow"
+        description="A one-off workflow built to reduce manual security work: scripted checks, alerts, or compliance reporting."
       />
     </div>
+
+    <div class="mt-12">
+      <a href="/services" class="inline-flex items-center text-base font-medium text-maroon-700 hover:text-maroon-500 transition-colors">
+        All services →
+      </a>
+    </div>
   </section>
+
+  <!-- ABOUT -->
+  <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 py-16 md:py-24 border-t border-neutral-200">
+    <header class="max-w-2xl mb-10">
+      <h2 class="font-display text-3xl md:text-4xl font-semibold text-navy-900 leading-tight tracking-tight">
+        About
+      </h2>
+    </header>
+
+    <div class="max-w-3xl space-y-6 text-base md:text-lg text-neutral-800 leading-relaxed text-justify hyphens-auto">
+      <p>
+        Hello! I am Aisha. I founded Cyphral after my MSc in Network and Information Security, where my dissertation focused on post-quantum cryptography. Before that, I worked in software development and automation: Python, DevOps, CI/CD work that taught me what actually changes a system's security posture and what just decorates it.
+      </p>
+      <p>
+        The pivot to Cyber Essentials readiness came from watching too many UK small businesses treat cyber security as either a panic or another checkbox, without systematically improving security.
+      </p>
+      <p>
+        Cyphral exists to do that practical work. Small, focused engagements with clear scope and a clear ending. The aim is not to keep you signed up. The aim is to leave you in better shape than we found you, with documentation you can refer back to when something changes.
+      </p>
+    </div>
+
+    <div class="mt-10 max-w-3xl">
+      <a href="/about" class="inline-flex items-center text-base font-medium text-maroon-700 hover:text-maroon-500 transition-colors">
+        More about Cyphral →
+      </a>
+    </div>
+  </section>
+
+  <!-- CONTACT -->
+  <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 py-16 md:py-24 border-t border-neutral-200">
+    <header class="max-w-2xl mb-10">
+      <h2 class="font-display text-3xl md:text-4xl font-semibold text-navy-900 leading-tight tracking-tight">
+        Get in touch
+      </h2>
+      <p class="mt-6 text-base md:text-lg text-neutral-700 leading-relaxed">
+        If you've been asked about Cyber Essentials, or you need a hand with ongoing cyber security work, drop a line. We respond within 24 hours.
+      </p>
+    </header>
+
+    <div class="flex flex-col sm:flex-row gap-4 sm:gap-8 sm:items-center max-w-3xl">
+      <a
+        href="mailto:hello@cyphral.co.uk"
+        class="inline-flex items-center text-base font-medium text-navy-900 hover:text-maroon-700 transition-colors"
+      >
+        hello@cyphral.co.uk
+      </a>
+      <a
+        href="/contact"
+        class="inline-flex items-center text-base text-maroon-700 hover:text-maroon-500 transition-colors"
+      >
+        Send a message →
+      </a>
+    </div>
+  </section>
+
 </Layout>

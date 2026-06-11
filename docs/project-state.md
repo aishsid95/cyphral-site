@@ -85,5 +85,13 @@ Next phase: Phase 2 — Page content
 
 - **Geometric logo mark.** v1 ships wordmark-only (Switzer Semibold "Cyphral"). The geometric mark — intended to carry layered meaning in the spirit of Aisha's father's Fumzas logo (Latin/Arabic letterform crossover, hand-drawn warmth) — is deferred. Two paths to revisit: (a) Aisha sketches concepts by hand and we vectorise; (b) hire a logo designer (Fiverr, ~£25-60, one-off purchase, halal-clean). Do not commission cold geometric SaaS marks. Reference: `/docs/logo-brief.md` (to be created when work resumes).
 
+## Phase 2 progress
+
+| Task | Description | Status |
+|---|---|---|
+| Home page | Hero, founding banner, insights, services, about, contact sections | done (commit 9495a40) |
+| Home page fixes | H1 wording, title dedup, max-w-5xl unification, padding, button text | done (commit 617aa42) |
+| About page | Aisha's path, values cluster, personal CTA, two maroon dividers | done (commit 825396d) |
+
 ## Next expected task
-Phase 2 Task 1 — Home page copy drafting. Approach: copy-first in orchestrator window (Option B), then single Claude Code prompt to create all 5 page files with locked copy.
+Phase 2 — remaining pages: Services (if not yet live), Insights index, Contact page, and legal pages (Privacy, Terms, Cookies — AI-drafted, pending solicitor review).

@@ -24,3 +24,6 @@ pnpm-debug.log*
 .idea/
 .env.*
 .wrangler/
+
+.claude/agents/
+.claude/worktrees/

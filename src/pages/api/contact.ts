@@ -202,7 +202,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     to: email,
     subject: 'Thanks for getting in touch with Cyphral',
     text: [
-      `Hello ${name},`,
+      `Dear ${name},`,
       ``,
       `Thank you for getting in touch. I have received your message and will`,
       `reply within one working day.`,
@@ -210,8 +210,9 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
       `If anything else comes to mind in the meantime, you can reach me at`,
       `${REPLY_CONTACT}.`,
       ``,
-      `Best wishes,`,
-      `Aisha, Cyphral`,
+      `Best Regards,`,
+      `Aisha, `,
+      `Cyphral `,
     ].join('\n'),
   });
   // The confirmation is best-effort: if it fails, the enquiry still reached

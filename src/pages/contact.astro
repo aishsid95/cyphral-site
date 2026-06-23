@@ -25,7 +25,7 @@ import Layout from '../layouts/Layout.astro';
   <!-- CONTACT FORM -->
   <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 pb-16 md:pb-24">
     <div class="max-w-2xl mx-auto">
-      <form class="space-y-6">
+      <form id="contact-form" class="space-y-6" novalidate>
 
         <!-- Name -->
         <div>
@@ -83,9 +83,14 @@ import Layout from '../layouts/Layout.astro';
           />
         </div>
 
-        <!-- Submit (disabled until the backend is connected in a later phase) -->
+        <!-- Submit. The backend (/api/contact) is built and the fetch wiring
+             below is ready. The button stays DISABLED until ICO registration is
+             confirmed. TO ENABLE THE LIVE FORM: delete the `disabled` attribute
+             on the line marked below (and, if desired, drop opacity-50 and
+             cursor-not-allowed from the class). That is the only change needed. -->
         <div>
           <button
+            id="contact-submit"
             type="submit"
             disabled
             class="inline-flex items-center justify-center rounded-md bg-navy-900 text-white px-6 py-3 text-base font-medium opacity-50 cursor-not-allowed"
@@ -103,8 +108,83 @@ import Layout from '../layouts/Layout.astro';
             directly.
           </p>
         </div>
+
+        <!-- Status message, populated by the form script on submit. -->
+        <p
+          id="contact-status"
+          role="status"
+          aria-live="polite"
+          class="hidden text-base leading-relaxed"
+        ></p>
       </form>
     </div>
   </section>
+
+  <!--
+    Form submission handling. Astro processes (does not inline) this <script>,
+    bundling it to an external module file, so it is CSP-safe (no inline JS).
+    Progressive enhancement: it intercepts submit, POSTs JSON to /api/contact,
+    and shows a success or error message. While the submit button is disabled
+    the listener simply never fires; enabling the button activates it.
+  -->
+  <script>
+    const form = document.getElementById('contact-form') as HTMLFormElement | null;
+    const statusEl = document.getElementById('contact-status');
+    const submitBtn = document.getElementById('contact-submit') as HTMLButtonElement | null;
+
+    if (form && statusEl && submitBtn) {
+      const show = (message: string, ok: boolean) => {
+        statusEl.textContent = message;
+        statusEl.classList.remove('hidden', 'text-maroon-700', 'text-navy-900');
+        statusEl.classList.add(ok ? 'text-navy-900' : 'text-maroon-700');
+      };
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const data = new FormData(form);
+        const payload = {
+          name: String(data.get('name') ?? ''),
+          email: String(data.get('email') ?? ''),
+          message: String(data.get('message') ?? ''),
+          company: String(data.get('company') ?? ''), // honeypot
+        };
+
+        const originalLabel = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Sending...';
+
+        try {
+          const res = await fetch('/api/contact', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+
+          if (res.ok) {
+            form.reset();
+            show('Thank you. Your message has been sent and I will reply within one working day.', true);
+            submitBtn.textContent = 'Sent';
+            return; // leave the button disabled after a successful send
+          }
+
+          let message = 'Sorry, something went wrong. Please email hello@cyphral.co.uk directly.';
+          try {
+            const body = (await res.json()) as { error?: string };
+            if (body.error) message = body.error;
+          } catch {
+            // keep the default message
+          }
+          show(message, false);
+        } catch {
+          show('Sorry, the message could not be sent. Please email hello@cyphral.co.uk directly.', false);
+        }
+
+        // Re-enable so the visitor can correct and retry (only on failure).
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalLabel;
+      });
+    }
+  </script>
 
 </Layout>

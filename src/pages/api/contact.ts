@@ -211,8 +211,8 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
       `${REPLY_CONTACT}.`,
       ``,
       `Best Regards,`,
-      `Aisha, `,
-      `Cyphral `,
+      `Aisha,`,
+      `Cyphral`,
     ].join('\n'),
   });
   // The confirmation is best-effort: if it fails, the enquiry still reached

@@ -11,8 +11,8 @@
  *   - variant: "hero" | "inline" — visual treatment.
  *       - hero: large card with prominent CTA (used on home page hero)
  *       - inline: compact strip (used inside Services page or near footer)
- *   - href: where the CTA links to. Defaults to "/founding-offer" (a page we'll build later;
- *           for now it 404s gracefully). Allow override for inline contexts that link
+ *   - href: where the CTA links to. Defaults to "/#founding" (the founding-client
+ *           section on the home page). Allow override for inline contexts that link
  *           somewhere else (e.g. directly to /contact).
  *
  * The banner intentionally:
@@ -29,7 +29,7 @@ interface Props {
   class?: string;
 }
 
-const { variant = "hero", href = "/founding-offer", class: className = "" } = Astro.props;
+const { variant = "hero", href = "/#founding", class: className = "" } = Astro.props;
 
 const taken: number = foundingData.taken;
 const total: number = foundingData.total;

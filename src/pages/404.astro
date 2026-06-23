@@ -1,0 +1,40 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+  title="Page not found"
+  description="The page you were looking for could not be found. Return to the Cyphral home page or get in touch."
+>
+
+  <!-- HERO -->
+  <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 pt-16 md:pt-28 pb-16 md:pb-24">
+    <div class="max-w-5xl mx-auto">
+      <p class="text-xs font-medium tracking-[0.18em] uppercase text-maroon-700">
+        Error 404
+      </p>
+      <h1 class="mt-6 font-display text-4xl md:text-6xl lg:text-7xl font-semibold text-navy-900 leading-[1.05] tracking-tight">
+        Page not found.
+      </h1>
+      <p class="mt-8 text-base md:text-lg text-neutral-800 leading-relaxed">
+        The page you were looking for is not here. It may have moved, or the link may be incomplete. Let us get you back on track.
+      </p>
+
+      <div class="mt-10 flex flex-col sm:flex-row gap-4 sm:gap-6 sm:items-center">
+        <a
+          href="/"
+          class="inline-flex items-center justify-center bg-navy-900 hover:bg-navy-700 text-white text-base font-medium px-6 py-3 rounded-md transition-colors"
+        >
+          Back to home
+        </a>
+        <a
+          href="/contact"
+          class="inline-flex items-center text-base text-maroon-700 hover:text-maroon-500 transition-colors"
+        >
+          Get in touch →
+        </a>
+      </div>
+    </div>
+  </section>
+
+</Layout>

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <!-- Background: brand navy -->
+  <rect width="1200" height="630" fill="#182A3B"/>
+
+  <!-- Maroon accent: top rule -->
+  <rect x="0" y="0" width="1200" height="14" fill="#5C2331"/>
+
+  <!-- Wordmark -->
+  <text x="600" y="300"
+    text-anchor="middle"
+    font-family="Switzer Semibold, Switzer, sans-serif"
+    font-weight="600"
+    font-size="170"
+    letter-spacing="-6"
+    fill="#FAFAF7">Cyphral</text>
+
+  <!-- Maroon underline accent, centred under the wordmark -->
+  <rect x="520" y="360" width="160" height="8" rx="4" fill="#5C2331"/>
+
+  <!-- Tagline -->
+  <text x="600" y="452"
+    text-anchor="middle"
+    font-family="Switzer Semibold, Switzer, sans-serif"
+    font-weight="600"
+    font-size="44"
+    letter-spacing="0"
+    fill="#D5D2C7">Cyber Essentials readiness for UK SMEs</text>
+</svg>

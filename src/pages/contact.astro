@@ -83,17 +83,12 @@ import Layout from '../layouts/Layout.astro';
           />
         </div>
 
-        <!-- Submit. The backend (/api/contact) is built and the fetch wiring
-             below is ready. The button stays DISABLED until ICO registration is
-             confirmed. TO ENABLE THE LIVE FORM: delete the `disabled` attribute
-             on the line marked below (and, if desired, drop opacity-50 and
-             cursor-not-allowed from the class). That is the only change needed. -->
+        <!-- Submit. Live: posts to /api/contact via the fetch handler below. -->
         <div>
           <button
             id="contact-submit"
             type="submit"
-            disabled
-            class="inline-flex items-center justify-center rounded-md bg-navy-900 text-white px-6 py-3 text-base font-medium opacity-50 cursor-not-allowed"
+            class="inline-flex items-center justify-center rounded-md bg-navy-900 hover:bg-navy-700 text-white px-6 py-3 text-base font-medium transition-colors"
           >
             Send message
           </button>

@@ -198,9 +198,12 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   }
 
   // 2. Confirmation to the submitter. Warm, plain, no marketing, no extra links.
+  // reply_to is the inbound-routed address (forwards to Gmail) so a reply to the
+  // confirmation reaches us rather than bouncing on the send-only subdomain.
   await sendEmail(apiKey, {
     to: email,
     subject: 'Thanks for getting in touch with Cyphral',
+    reply_to: REPLY_CONTACT,
     text: [
       `Dear ${name},`,
       ``,

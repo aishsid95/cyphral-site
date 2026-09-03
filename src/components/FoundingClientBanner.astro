@@ -48,6 +48,7 @@ const formattedEndDate = endDate.toLocaleDateString("en-GB", {
 });
 
 const remaining = total - taken;
+const showCounter = taken >= 1;
 ---
 
 {isActive && variant === "hero" && (
@@ -66,13 +67,16 @@ const remaining = total - taken;
         Founding client offer
       </p>
       <h2 id="founding-banner-heading" class="text-xl md:text-2xl font-semibold text-navy-900">
-        {remaining} of {total} founding spots still open.
+        Founding pricing for the first {total} clients.
       </h2>
       <p class="text-sm md:text-base text-neutral-700 max-w-3xl leading-relaxed">
         Discounted rates for the first {total} clients in exchange for a written testimonial.
       </p>
       <p class="text-sm md:text-base text-neutral-700 max-w-3xl leading-relaxed">
-        Offer ends when the {total}<sup>th</sup> client signs, or {formattedEndDate}, whichever first.
+        {showCounter
+          ? <>{remaining} of {total} spots remaining. Offer ends {formattedEndDate}.</>
+          : <>Founding pricing is available until {formattedEndDate} or the first {total} clients, whichever comes first.</>
+        }
       </p>
     </div>
 
@@ -95,6 +99,10 @@ const remaining = total - taken;
   >
     <span class="font-semibold text-navy-700">Founding client offer:</span>
     {" "}
-    {remaining} of {total} spots still open. <a href={href} class="text-maroon-700 hover:text-maroon-500 underline underline-offset-2">See terms</a>.
+    {showCounter
+      ? <>{remaining} of {total} spots remaining. Offer ends {formattedEndDate}. </>
+      : <>Available until {formattedEndDate} or the first {total} clients, whichever comes first. </>
+    }
+    <a href={href} class="text-maroon-700 hover:text-maroon-500 underline underline-offset-2">See terms</a>.
   </p>
 )}

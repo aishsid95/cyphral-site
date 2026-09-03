@@ -9,11 +9,8 @@
  *
  * Props:
  *   - variant: "hero" | "inline" — visual treatment.
- *       - hero: large card with prominent CTA (used on home page hero)
+ *       - hero: large card (used on home page hero)
  *       - inline: compact strip (used inside Services page or near footer)
- *   - href: where the CTA links to. Defaults to "/#founding" (the founding-client
- *           section on the home page). Allow override for inline contexts that link
- *           somewhere else (e.g. directly to /contact).
  *
  * The banner intentionally:
  *   - Does NOT show the discounted prices here. The offer is "discount available" — the
@@ -25,11 +22,10 @@ import foundingData from "../data/founding-clients.json";
 
 interface Props {
   variant?: "hero" | "inline";
-  href?: string;
   class?: string;
 }
 
-const { variant = "hero", href = "/#founding", class: className = "" } = Astro.props;
+const { variant = "hero", class: className = "" } = Astro.props;
 
 const taken: number = foundingData.taken;
 const total: number = foundingData.total;
@@ -57,7 +53,6 @@ const showCounter = taken >= 1;
       "relative overflow-hidden",
       "rounded-xl border border-maroon-200 bg-maroon-50",
       "px-6 py-6 md:px-8 md:py-8",
-      "flex flex-col md:flex-row md:items-center md:justify-between gap-5 md:gap-8",
       className,
     ]}
     aria-labelledby="founding-banner-heading"
@@ -79,13 +74,6 @@ const showCounter = taken >= 1;
         }
       </p>
     </div>
-
-    <a
-      href={href}
-      class="inline-flex items-center justify-center px-5 py-2.5 rounded-md bg-navy-500 hover:bg-navy-600 text-neutral-50 text-sm md:text-base font-medium transition-colors whitespace-nowrap"
-    >
-      See the offer →
-    </a>
   </aside>
 )}
 
@@ -100,9 +88,8 @@ const showCounter = taken >= 1;
     <span class="font-semibold text-navy-700">Founding client offer:</span>
     {" "}
     {showCounter
-      ? <>{remaining} of {total} spots remaining. Offer ends {formattedEndDate}. </>
-      : <>Available until {formattedEndDate} or the first {total} clients, whichever comes first. </>
+      ? <>{remaining} of {total} spots remaining. Offer ends {formattedEndDate}.</>
+      : <>Available until {formattedEndDate} or the first {total} clients, whichever comes first.</>
     }
-    <a href={href} class="text-maroon-700 hover:text-maroon-500 underline underline-offset-2">See terms</a>.
   </p>
 )}

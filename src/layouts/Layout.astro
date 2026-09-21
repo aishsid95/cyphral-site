@@ -23,6 +23,10 @@ interface Props {
   description: string;
   canonical?: string;
   suppressTitleSuffix?: boolean;
+  /** Only /book/confirm and /book/cancel set this, to "no-referrer" — see public/_headers for why this is a <meta> tag rather than another _headers rule. */
+  metaReferrerPolicy?: string;
+  /** /book/confirm and /book/cancel set this: token-gated dead ends with no useful content without a visitor's own link, not worth indexing. */
+  noindex?: boolean;
 }
 
 const {
@@ -30,6 +34,8 @@ const {
   description,
   canonical,
   suppressTitleSuffix = false,
+  metaReferrerPolicy,
+  noindex = false,
 } = Astro.props;
 
 const fullTitle = suppressTitleSuffix ? title : `${title} — Cyphral`;
@@ -86,7 +92,9 @@ const isActive = (path: string) =>
     />
 
     <!-- Robots: indexable, no special directives -->
-    <meta name="robots" content="index, follow" />
+    <meta name="robots" content={noindex ? "noindex, nofollow" : "index, follow"} />
+
+    {metaReferrerPolicy && <meta name="referrer" content={metaReferrerPolicy} />}
   </head>
 
   <body class="bg-neutral-50 text-neutral-900 font-display antialiased">
@@ -195,34 +203,11 @@ const isActive = (path: string) =>
     </footer>
 
     <!--
-      Tiny scroll-aware header script. No framework, no Astro client directive,
-      just a plain <script> that runs once on first paint.
-      Marks data-scrolled="true" on header when user has scrolled past 8px,
-      which CSS uses to fade in the background and bottom border.
+      Tiny scroll-aware header script (src=, not inline body content) — see
+      src/scripts/header-scroll.ts. Marks data-scrolled="true" on the header
+      once scrolled past 8px, which CSS uses to fade in the background and
+      bottom border.
     -->
-    <script is:inline>
-      (function () {
-        var header = document.getElementById('site-header');
-        if (!header) return;
-        var border = header.querySelector('.header-border');
-        var threshold = 8;
-
-        function update() {
-          var scrolled = window.scrollY > threshold;
-          if (scrolled) {
-            header.dataset.scrolled = 'true';
-            header.classList.add('bg-neutral-50/85', 'backdrop-blur-md');
-            if (border) border.classList.add('bg-neutral-200');
-          } else {
-            header.dataset.scrolled = 'false';
-            header.classList.remove('bg-neutral-50/85', 'backdrop-blur-md');
-            if (border) border.classList.remove('bg-neutral-200');
-          }
-        }
-
-        update();
-        window.addEventListener('scroll', update, { passive: true });
-      })();
-    </script>
+    <script src="../scripts/header-scroll.ts"></script>
   </body>
 </html>

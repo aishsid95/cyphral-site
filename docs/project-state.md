@@ -5,10 +5,12 @@ start of every session. Update it at the end of every completed task with:
 what was built, decisions made, current state, next expected task.
 
 ## Current phase
-Phase 1 — Brand and Design Tokens (CLOSED)
-Next phase: Phase 2 — Page content
+Booking feature ("Book a call") — Phase 5 of 5 (pages, cron, headers, final review) — awaiting Aisha's review before deploy
+Next phase: manual setup (ICO check, Turnstile widget, Resend key, secrets, wrangler.jsonc main+cron diff) then a preview deploy test, per docs/booking-runbook.md
 
 ## Latest update
+2026-09-21 — Booking feature built end-to-end across five phases (config/availability engine, D1 schema, API routes, email/ICS templates, pages+cron+hardening). See docs/booking-runbook.md for operational details and docs/legal-todo.md for the privacy/cookie policy diffs pending solicitor review. Not deployed — Aisha reviews first. Full history is in git log; this file only tracks current state.
+
 2026-05-05 — Phase 1 closed. Brand identity, design tokens, Layout, FoundingClientBanner, PriceBlock, maroon palette pivot, footer redesign, fluid hero all live. Site visually established.
 
 ## Live infrastructure

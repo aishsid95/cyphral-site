@@ -1,0 +1,36 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout
+  title="Confirm your call"
+  description="Confirm your booked call with Cyphral using the link from your confirmation email."
+  metaReferrerPolicy="no-referrer"
+  noindex
+>
+  <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 pt-16 md:pt-28 pb-16 md:pb-24">
+    <div class="max-w-2xl mx-auto text-center">
+      <p class="text-xs font-medium tracking-[0.18em] uppercase text-maroon-700">Book a call</p>
+      <h1 class="mt-6 font-display text-3xl md:text-5xl font-semibold text-navy-900 leading-[1.1] tracking-tight">
+        Confirm your call
+      </h1>
+
+      <div id="confirm-action" class="mt-8">
+        <p class="text-base text-neutral-800 leading-relaxed mb-6">
+          Click below to confirm. This does not happen automatically when the page loads.
+        </p>
+        <button
+          type="button"
+          id="confirm-button"
+          class="inline-flex items-center justify-center rounded-md bg-navy-900 hover:bg-navy-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 text-base font-medium transition-colors"
+        >
+          Confirm my call
+        </button>
+      </div>
+
+      <p id="confirm-status" class="mt-8 text-base text-neutral-800 leading-relaxed" role="status" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <script src="../../scripts/book-confirm.ts"></script>
+</Layout>

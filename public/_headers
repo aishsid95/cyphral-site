@@ -1,7 +1,28 @@
 /*
   Strict-Transport-Security: max-age=31536000
   X-Frame-Options: DENY
-  Content-Security-Policy: frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+
+# /book* gets its own Content-Security-Policy. Cloudflare's _headers file
+# COMMA-JOINS a header set by more than one matching rule rather than letting
+# the more specific one replace it — a comma-joined CSP is not a single valid
+# policy, so this directive must not also be set on "/*" (it isn't, see
+# above; the clickjacking protection there comes from X-Frame-Options alone,
+# which duplicates frame-ancestors for every browser that matters). Two
+# explicit rules (bare "/book" and "/book/*") cover the page and its
+# sub-paths without relying on Cloudflare's splat matching the bare path.
+#
+# script-src has no 'unsafe-inline': every script on /book* is served from
+# an external file (astro.config.mjs sets vite.build.assetsInlineLimit: 0
+# specifically so Astro never inlines a <script>, however small) or from
+# challenges.cloudflare.com (the Turnstile widget). style-src keeps
+# 'unsafe-inline' for Tailwind's utility classes and Astro's scoped <style>
+# output, which land as inline style attributes/tags with no safe way to
+# externalise them here.
+/book
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://static.cloudflareinsights.com; frame-src https://challenges.cloudflare.com; connect-src 'self' https://cloudflareinsights.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+
+/book/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://static.cloudflareinsights.com; frame-src https://challenges.cloudflare.com; connect-src 'self' https://cloudflareinsights.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'

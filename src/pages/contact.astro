@@ -22,9 +22,32 @@ import Layout from '../layouts/Layout.astro';
     </div>
   </section>
 
-  <!-- CONTACT FORM -->
+  <!-- BOOKING CARD + CONTACT FORM -->
   <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 pb-16 md:pb-24">
-    <div class="max-w-2xl mx-auto">
+    <div class="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
+
+      <!-- Booking card: plain static HTML, no scripts, no Turnstile, no CSP change here. -->
+      <div class="rounded-lg border border-navy-300 bg-white px-6 py-8 md:px-8 md:py-10">
+        <p class="text-xs font-medium tracking-[0.18em] uppercase text-maroon-700">
+          Prefer to talk?
+        </p>
+        <h2 class="mt-4 font-display text-2xl md:text-3xl font-semibold text-navy-900 leading-tight tracking-tight">
+          Book a free 30-minute gap check
+        </h2>
+        <p class="mt-4 text-base text-neutral-800 leading-relaxed">
+          Pick a time that suits you and I will go through where your business stands against Cyber Essentials.
+        </p>
+        <a
+          href="/book"
+          class="mt-6 inline-flex items-center justify-center rounded-md bg-navy-900 hover:bg-navy-700 text-white px-6 py-3 text-base font-medium transition-colors"
+        >
+          See available times
+        </a>
+        <p class="mt-4 text-sm text-neutral-600">
+          Or write to me using the form.
+        </p>
+      </div>
+
       <form id="contact-form" class="space-y-6" novalidate>
 
         <!-- Name -->

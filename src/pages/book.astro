@@ -1,0 +1,151 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { BOOKING } from '../../worker/booking/config';
+import { topicLabel } from '../../worker/booking/emails/shared';
+
+const topics = BOOKING.topics.map((value) => ({ value, label: topicLabel(value) }));
+
+// Sitekeys are public by design (unlike the secret key, never exposed here).
+// Falls back to Cloudflare's published "always passes" test sitekey so local
+// preview builds work before a real widget exists — see docs/booking-runbook.md.
+const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA';
+---
+
+<Layout
+  title="Book a call"
+  description="Pick a time for a free 30-minute Cyber Essentials gap check with Aisha, Cyphral's founder."
+>
+  <!-- HERO -->
+  <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 pt-16 md:pt-28 pb-8 md:pb-12">
+    <div class="max-w-5xl mx-auto">
+      <p class="text-xs font-medium tracking-[0.18em] uppercase text-maroon-700">
+        Book a call
+      </p>
+      <h1 class="mt-6 font-display text-4xl md:text-6xl lg:text-7xl font-semibold text-navy-900 leading-[1.05] tracking-tight">
+        Pick a time that suits you.
+      </h1>
+      <p class="mt-8 text-base md:text-lg text-neutral-800 leading-relaxed max-w-2xl">
+        This is a free 30-minute Cyber Essentials gap check: a plain-English look at where your
+        business stands against the Cyber Essentials questions, and what a readiness sprint would
+        actually involve for you. No pitch deck, no obligation.
+      </p>
+      <p class="mt-4 text-sm text-neutral-600">
+        Booking asks for your name, email, and a note if you have one. See the
+        <a href="/privacy" class="text-maroon-700 hover:text-maroon-500 underline underline-offset-4 decoration-neutral-300 hover:decoration-maroon-500 transition-colors">privacy policy</a>
+        for what happens to it.
+      </p>
+    </div>
+  </section>
+
+  <!-- BOOKING APP -->
+  <section class="mx-auto max-w-[1600px] px-6 md:px-12 lg:px-16 pb-16 md:pb-24">
+    <div class="max-w-5xl mx-auto">
+      <noscript>
+        <p class="rounded-md border border-navy-300 bg-white px-4 py-3 text-base text-neutral-800">
+          Booking needs JavaScript to show available times. Please email
+          <a href="mailto:hello@cyphral.co.uk" class="text-maroon-700 underline underline-offset-4">hello@cyphral.co.uk</a>
+          and I will find a time that works.
+        </p>
+      </noscript>
+
+      <div id="booking-app" class="hidden" data-slots-url="/api/booking/slots" data-hold-url="/api/booking/hold">
+        <!-- Loading skeleton -->
+        <div id="booking-loading" class="animate-pulse space-y-3" aria-hidden="true">
+          <div class="h-6 w-48 rounded bg-neutral-200"></div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="h-24 rounded-md bg-neutral-200"></div>
+            <div class="h-24 rounded-md bg-neutral-200"></div>
+            <div class="h-24 rounded-md bg-neutral-200"></div>
+            <div class="h-24 rounded-md bg-neutral-200"></div>
+          </div>
+        </div>
+
+        <!-- Status region: unavailable / no slots / rate limited / challenge failed / verification sent -->
+        <p id="booking-status" class="hidden rounded-md border px-4 py-3 text-base leading-relaxed" role="status" aria-live="polite"></p>
+
+        <!-- Slot picker -->
+        <div id="slot-picker" class="hidden">
+          <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+            <div class="flex items-center gap-2">
+              <button type="button" id="week-prev" class="rounded-md border border-navy-300 px-3 py-1.5 text-sm font-medium text-navy-900 hover:bg-navy-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                &larr; Previous week
+              </button>
+              <button type="button" id="week-next" class="rounded-md border border-navy-300 px-3 py-1.5 text-sm font-medium text-navy-900 hover:bg-navy-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                Next week &rarr;
+              </button>
+            </div>
+            <button type="button" id="tz-toggle" class="rounded-md border border-navy-300 px-3 py-1.5 text-sm font-medium text-navy-900 hover:bg-navy-50 transition-colors">
+              Show UK time
+            </button>
+          </div>
+          <p id="tz-label" class="text-sm text-neutral-600 mb-4"></p>
+
+          <div id="slot-days" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-4"></div>
+        </div>
+
+        <!-- Booking form -->
+        <form id="booking-form" class="hidden mt-10 space-y-6" novalidate>
+          <p id="selected-slot" class="text-base font-medium text-navy-900"></p>
+
+          <div>
+            <label for="name" class="block text-sm font-medium text-navy-900 mb-2">Name</label>
+            <input type="text" id="name" name="name" required autocomplete="name" maxlength="80"
+              class="w-full rounded-md border border-navy-300 bg-white px-4 py-3 text-base text-neutral-900 placeholder-neutral-400 focus:border-maroon-500 focus:outline-none focus:ring-2 focus:ring-maroon-500/30 transition-colors"
+              aria-describedby="name-error" />
+            <p id="name-error" class="mt-1 text-sm text-maroon-700 hidden"></p>
+          </div>
+
+          <div>
+            <label for="email" class="block text-sm font-medium text-navy-900 mb-2">Email</label>
+            <input type="email" id="email" name="email" required autocomplete="email" maxlength="254"
+              class="w-full rounded-md border border-navy-300 bg-white px-4 py-3 text-base text-neutral-900 placeholder-neutral-400 focus:border-maroon-500 focus:outline-none focus:ring-2 focus:ring-maroon-500/30 transition-colors"
+              aria-describedby="email-error" />
+            <p id="email-error" class="mt-1 text-sm text-maroon-700 hidden"></p>
+          </div>
+
+          <div>
+            <label for="company" class="block text-sm font-medium text-navy-900 mb-2">Company <span class="text-neutral-500 font-normal">(optional)</span></label>
+            <input type="text" id="company" name="company" autocomplete="organization" maxlength="120"
+              class="w-full rounded-md border border-navy-300 bg-white px-4 py-3 text-base text-neutral-900 placeholder-neutral-400 focus:border-maroon-500 focus:outline-none focus:ring-2 focus:ring-maroon-500/30 transition-colors" />
+          </div>
+
+          <div>
+            <label for="topic" class="block text-sm font-medium text-navy-900 mb-2">What's this about?</label>
+            <select id="topic" name="topic" required
+              class="w-full rounded-md border border-navy-300 bg-white px-4 py-3 text-base text-neutral-900 focus:border-maroon-500 focus:outline-none focus:ring-2 focus:ring-maroon-500/30 transition-colors">
+              {topics.map((topic) => <option value={topic.value}>{topic.label}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label for="note" class="block text-sm font-medium text-navy-900 mb-2">Anything I should know? <span class="text-neutral-500 font-normal">(optional)</span></label>
+            <textarea id="note" name="note" rows="4" maxlength="500"
+              class="w-full rounded-md border border-navy-300 bg-white px-4 py-3 text-base text-neutral-900 placeholder-neutral-400 focus:border-maroon-500 focus:outline-none focus:ring-2 focus:ring-maroon-500/30 transition-colors"
+              aria-describedby="note-count"></textarea>
+            <p id="note-count" class="mt-1 text-sm text-neutral-500">0 / 500</p>
+          </div>
+
+          <!-- Honeypot: hidden from humans, tempting to bots. Do not fill this in. -->
+          <div class="absolute -left-[9999px]" aria-hidden="true">
+            <label for="website">Website</label>
+            <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" />
+          </div>
+
+          <div class="cf-turnstile" data-sitekey={turnstileSiteKey} data-action="booking_hold" data-callback="cyphralTurnstileSuccess" data-error-callback="cyphralTurnstileError" data-expired-callback="cyphralTurnstileExpired"></div>
+
+          <div>
+            <button type="submit" id="booking-submit" disabled
+              class="inline-flex items-center justify-center rounded-md bg-navy-900 hover:bg-navy-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 text-base font-medium transition-colors">
+              Request this time
+            </button>
+          </div>
+
+          <p id="form-status" class="text-base leading-relaxed hidden" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <script src="../scripts/book.ts"></script>
+</Layout>

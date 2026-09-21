@@ -100,7 +100,7 @@ export const BOOKING: BookingConfigShape = {
   bookingBufferMinutes: 15, // gap kept either side of an existing booking
   blockBufferMinutes: 30, // gap kept either side of a recurring or one-off block
   minNoticeHours: 24,
-  horizonDays: 21,
+  horizonDays: 21, // if you change this, also update the "next three weeks" wording in src/scripts/book.ts — it isn't derived from this value
   maxCallsPerDay: 2,
   holdMinutes: 15,
 

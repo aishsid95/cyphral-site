@@ -205,3 +205,79 @@ describe('POST /api/booking/confirm and /cancel — reachable and correctly reje
     expect(res.status).toBe(403);
   });
 });
+
+describe('/book* pages and their headers, served via the real ASSETS binding + public/_headers', () => {
+  it('GET /book returns the real prerendered page', async () => {
+    const res = await SELF.fetch('https://cyphral.co.uk/book');
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain('Pick a time that suits you');
+  });
+
+  it('GET /book/confirm and /book/cancel return their real prerendered pages', async () => {
+    const confirmRes = await SELF.fetch('https://cyphral.co.uk/book/confirm');
+    expect(confirmRes.status).toBe(200);
+    expect(await confirmRes.text()).toContain('Confirm your call');
+
+    const cancelRes = await SELF.fetch('https://cyphral.co.uk/book/cancel');
+    expect(cancelRes.status).toBe(200);
+    expect(await cancelRes.text()).toContain('Cancel your call');
+  });
+
+  it('/book carries a script-src with no unsafe-inline, and frame-ancestors none', async () => {
+    const res = await SELF.fetch('https://cyphral.co.uk/book');
+    const csp = res.headers.get('Content-Security-Policy');
+    expect(csp).toBeTruthy();
+    // script-src must not carry unsafe-inline (style-src does, intentionally, for Tailwind).
+    const scriptSrc = csp!.split(';').find((d) => d.trim().startsWith('script-src'));
+    expect(scriptSrc).not.toContain('unsafe-inline');
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain('challenges.cloudflare.com');
+  });
+
+  it('the CSP is not comma-corrupted by the site-wide rule also matching /book', async () => {
+    const res = await SELF.fetch('https://cyphral.co.uk/book');
+    const csp = res.headers.get('Content-Security-Policy');
+    // A corrupted merge would show up as a comma joining two full policies.
+    expect(csp).not.toContain(', default-src');
+    expect(csp?.split(',').length).toBe(1);
+  });
+
+  it('an ordinary page has no Content-Security-Policy header at all', async () => {
+    const res = await SELF.fetch('https://cyphral.co.uk/about');
+    expect(res.headers.get('Content-Security-Policy')).toBeNull();
+  });
+
+  it('/book/confirm sends Referrer-Policy: no-referrer via its own <meta> tag', async () => {
+    const res = await SELF.fetch('https://cyphral.co.uk/book/confirm');
+    const html = await res.text();
+    expect(html).toContain('<meta name="referrer" content="no-referrer">');
+  });
+
+  it('/book itself keeps the site-wide Referrer-Policy (no override)', async () => {
+    const res = await SELF.fetch('https://cyphral.co.uk/book');
+    const html = await res.text();
+    expect(html).not.toContain('name="referrer"');
+  });
+
+  it('every /book* page has X-Content-Type-Options and Permissions-Policy from the site-wide rule', async () => {
+    for (const path of ['/book', '/book/confirm', '/book/cancel']) {
+      const res = await SELF.fetch(`https://cyphral.co.uk${path}`);
+      expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff');
+      expect(res.headers.get('Permissions-Policy')).toContain('camera=()');
+    }
+  });
+
+  it('every script tag on /book, /book/confirm, and /book/cancel is external (no inline body content)', async () => {
+    for (const path of ['/book', '/book/confirm', '/book/cancel']) {
+      const res = await SELF.fetch(`https://cyphral.co.uk${path}`);
+      const html = await res.text();
+      const scriptTags = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)];
+      expect(scriptTags.length).toBeGreaterThan(0);
+      for (const [full, body] of scriptTags) {
+        expect(body.trim()).toBe(''); // every script tag has empty body content; all logic loads via src=
+        expect(full).toMatch(/\bsrc=/);
+      }
+    }
+  });
+});

@@ -1,25 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-  escapeHtml,
   sendBookerConfirmationEmail,
   sendCancellationEmails,
   sendOwnerNotificationEmail,
   sendVerificationEmail,
   sendViaResend,
-  stripCrlf,
 } from './mail';
 
-describe('escapeHtml', () => {
-  it('escapes the five dangerous characters', () => {
-    expect(escapeHtml(`<img src=x onerror=alert(1)>&"'`)).toBe('&lt;img src=x onerror=alert(1)&gt;&amp;&quot;&#39;');
-  });
-});
-
-describe('stripCrlf', () => {
-  it('removes CR and LF', () => {
-    expect(stripCrlf('a\r\nBcc: x@y.com')).toBe('aBcc: x@y.com');
-  });
-});
+// escapeHtml/stripCrlf/formatSlotTime content-formatting primitives now live
+// in emails/shared.ts — see emails/shared.test.ts. This file covers the
+// transport layer (sendViaResend) and that each send* function wires the
+// right content, recipient, reply-to, and (for the owner notification)
+// attachment together correctly end-to-end.
 
 describe('sendViaResend', () => {
   function captureFetch() {
@@ -154,12 +146,14 @@ describe('sendBookerConfirmationEmail and sendOwnerNotificationEmail escape user
     await sendOwnerNotificationEmail({
       apiKey: 'key',
       to: 'hello@cyphral.co.uk',
+      bookingId: 'booking-1',
       name: '<img src=x onerror=alert(1)>',
       email: 'visitor@example.com',
       company: '',
       topic: 'ce-readiness',
       note: '<script>alert(1)</script>',
       slotStartIso: '2026-07-20T09:00:00Z',
+      slotEndIso: '2026-07-20T09:30:00Z',
       visitorTz: 'Europe/London',
       idempotencyKey: 'booking-1:owner',
       fetchImpl,
@@ -172,6 +166,37 @@ describe('sendBookerConfirmationEmail and sendOwnerNotificationEmail escape user
     expect(body.html).toContain('&lt;script&gt;');
     // Plain text is not HTML, so it's carried through as literal text there is no injection surface for.
     expect(body.text).toContain('<img src=x onerror=alert(1)>');
+  });
+
+  it('attaches booking.ics to the owner notification', async () => {
+    const calls: string[] = [];
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      calls.push(init.body as string);
+      return new Response('{}', { status: 200 });
+    }) as typeof fetch;
+
+    await sendOwnerNotificationEmail({
+      apiKey: 'key',
+      to: 'hello@cyphral.co.uk',
+      bookingId: 'booking-2',
+      name: 'Ada Lovelace',
+      email: 'ada@example.com',
+      company: 'Analytical Engines Ltd',
+      topic: 'automation',
+      note: '',
+      slotStartIso: '2026-07-20T09:00:00Z',
+      slotEndIso: '2026-07-20T09:30:00Z',
+      visitorTz: 'Europe/London',
+      idempotencyKey: 'booking-2:owner',
+      fetchImpl,
+    });
+
+    const body = JSON.parse(calls[0]);
+    expect(body.attachments).toHaveLength(1);
+    expect(body.attachments[0]).toMatchObject({ filename: 'booking.ics', content_type: 'text/calendar; method=PUBLISH' });
+    const decodedIcs = Buffer.from(body.attachments[0].content, 'base64').toString('utf8');
+    expect(decodedIcs).toContain('BEGIN:VEVENT');
+    expect(decodedIcs).toContain('UID:booking-2@cyphral.co.uk');
   });
 
   it('confirmation email to the booker does not include the note', async () => {

@@ -35,6 +35,7 @@
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.2.0",
+    "ical.js": "^2.2.1",
     "vitest": "^4.1.11"
   }
 }

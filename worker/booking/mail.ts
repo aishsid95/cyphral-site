@@ -1,57 +1,23 @@
 /**
- * Booking email: sending via Resend, budget enforcement, and the actual
- * email content.
- *
- * The content here is functionally complete and follows every hard rule
- * from the spec (verification email carries no user-supplied text at all,
- * every interpolated value is HTML-escaped, subjects carry no free-text
- * user input), but is plain and unstyled. Phase 4 replaces these bodies
- * with the full branded HTML/text templates and attaches the .ics file to
- * the owner notification — the wiring (budget checks, idempotency, timeout,
- * from/reply-to addresses) is not expected to change.
+ * Booking email transport: Resend sending, idempotency, timeout, budget
+ * enforcement, and the ICS attachment on the owner notification. Content
+ * itself lives in worker/booking/emails/*.ts — this file is orchestration
+ * only (which template, which recipient, which reply-to, what to attach).
  */
+import { buildBookingIcs, icsToBase64 } from './ics';
 import { isRateLimited, RATE_LIMITS, recordRateLimitEvent } from './rate-limit';
 import { countRateEvents } from './db';
+import { buildCancelledBookerEmail, buildCancelledOwnerEmail } from './emails/cancelled';
+import { buildConfirmedEmail } from './emails/confirmed';
+import { buildMailFailedAlertEmail } from './emails/alert';
+import { buildOwnerNotificationEmail } from './emails/owner-notification';
+import { buildVerificationEmail } from './emails/verification';
+import { stripCrlf, topicLabel } from './emails/shared';
 
 const FROM_ADDRESS = '"Aisha, Cyphral" <bookings@send.cyphral.co.uk>';
 const OWNER_REPLY_TO = 'hello@cyphral.co.uk';
 const RESEND_TIMEOUT_MS = 5000;
 const RESEND_URL = 'https://api.resend.com/emails';
-
-export function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-/** Defence in depth for anything header-bound — inputs are already validated not to contain these. */
-export function stripCrlf(value: string): string {
-  return value.replace(/[\r\n]/g, '');
-}
-
-function formatSlotTime(slotStartIso: string, timeZone: string): string {
-  const formatter = new Intl.DateTimeFormat('en-GB', {
-    timeZone,
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-  return formatter.format(new Date(slotStartIso));
-}
-
-export const TOPIC_LABELS: Record<string, string> = {
-  'ce-readiness': 'Cyber Essentials readiness',
-  'ce-renewal': 'Cyber Essentials renewal',
-  'cyber-care': 'Cyber Care',
-  automation: 'Automation',
-  'not-sure': 'Not sure yet',
-};
 
 // ---------------------------------------------------------------------------
 // Budget: the shared Resend account quota must never be exhausted by the
@@ -97,6 +63,13 @@ export async function recordMailSent(db: D1Database, recipientSubjectHash: strin
 // Low-level send
 // ---------------------------------------------------------------------------
 
+export interface ResendAttachment {
+  filename: string;
+  /** Base64-encoded. */
+  content: string;
+  content_type: string;
+}
+
 export interface SendViaResendInput {
   apiKey: string;
   to: string;
@@ -105,6 +78,7 @@ export interface SendViaResendInput {
   text: string;
   html: string;
   idempotencyKey: string;
+  attachments?: ResendAttachment[];
   fetchImpl?: typeof fetch;
 }
 
@@ -129,6 +103,7 @@ export async function sendViaResend(input: SendViaResendInput): Promise<SendResu
         subject: stripCrlf(input.subject),
         text: input.text,
         html: input.html,
+        ...(input.attachments ? { attachments: input.attachments } : {}),
       }),
       signal: controller.signal,
     });
@@ -141,7 +116,8 @@ export async function sendViaResend(input: SendViaResendInput): Promise<SendResu
 }
 
 // ---------------------------------------------------------------------------
-// Email content
+// Orchestration: one function per email, wiring content + recipient + reply-to
+// (+ attachment, for the owner notification) into a Resend send.
 // ---------------------------------------------------------------------------
 
 export interface VerificationEmailParams {
@@ -154,37 +130,17 @@ export interface VerificationEmailParams {
   fetchImpl?: typeof fetch;
 }
 
-/** No user-supplied text anywhere in this email — not even the name — so the form can't be used to relay an attacker's message through our domain. */
 export async function sendVerificationEmail(params: VerificationEmailParams): Promise<SendResult> {
-  const visitorTime = formatSlotTime(params.slotStartIso, params.visitorTz);
-  const ukTime = formatSlotTime(params.slotStartIso, 'Europe/London');
-  const link = `https://cyphral.co.uk/book/confirm#t=${encodeURIComponent(params.confirmToken)}`;
-
-  const text = [
-    'Please confirm your call with Cyphral.',
-    '',
-    `Time: ${visitorTime} (your time)`,
-    `UK time: ${ukTime}`,
-    '',
-    `Confirm here: ${link}`,
-    '',
-    'This link expires in 15 minutes.',
-  ].join('\n');
-
-  const html = [
-    '<p>Please confirm your call with Cyphral.</p>',
-    `<p>Time: ${escapeHtml(visitorTime)} (your time)<br>UK time: ${escapeHtml(ukTime)}</p>`,
-    `<p><a href="${escapeHtml(link)}">Confirm your call</a></p>`,
-    '<p>This link expires in 15 minutes.</p>',
-  ].join('\n');
-
+  const content = buildVerificationEmail({
+    slotStartIso: params.slotStartIso,
+    visitorTz: params.visitorTz,
+    confirmLink: `https://cyphral.co.uk/book/confirm#t=${encodeURIComponent(params.confirmToken)}`,
+  });
   return sendViaResend({
     apiKey: params.apiKey,
     to: params.to,
     replyTo: OWNER_REPLY_TO,
-    subject: 'Confirm your call with Cyphral',
-    text,
-    html,
+    ...content,
     idempotencyKey: params.idempotencyKey,
     fetchImpl: params.fetchImpl,
   });
@@ -202,45 +158,19 @@ export interface BookerConfirmationParams {
   fetchImpl?: typeof fetch;
 }
 
-/** The name may appear here — the address has been verified by this point. */
 export async function sendBookerConfirmationEmail(params: BookerConfirmationParams): Promise<SendResult> {
-  const visitorTime = formatSlotTime(params.slotStartIso, params.visitorTz);
-  const ukTime = formatSlotTime(params.slotStartIso, 'Europe/London');
-  const link = `https://cyphral.co.uk/book/cancel#t=${encodeURIComponent(params.cancelToken)}`;
-  const topicLabel = TOPIC_LABELS[params.topic] ?? params.topic;
-
-  const text = [
-    `Dear ${params.name},`,
-    '',
-    'Your call with Cyphral is booked.',
-    '',
-    `Time: ${visitorTime} (your time)`,
-    `UK time: ${ukTime}`,
-    `Topic: ${topicLabel}`,
-    '',
-    'I will send a calendar invite with the video call link before the call.',
-    '',
-    `Need to cancel? ${link}`,
-    '',
-    'Aisha, Cyphral',
-  ].join('\n');
-
-  const html = [
-    `<p>Dear ${escapeHtml(params.name)},</p>`,
-    '<p>Your call with Cyphral is booked.</p>',
-    `<p>Time: ${escapeHtml(visitorTime)} (your time)<br>UK time: ${escapeHtml(ukTime)}<br>Topic: ${escapeHtml(topicLabel)}</p>`,
-    '<p>I will send a calendar invite with the video call link before the call.</p>',
-    `<p>Need to cancel? <a href="${escapeHtml(link)}">Cancel your call</a></p>`,
-    '<p>Aisha, Cyphral</p>',
-  ].join('\n');
-
+  const content = buildConfirmedEmail({
+    name: params.name,
+    slotStartIso: params.slotStartIso,
+    visitorTz: params.visitorTz,
+    topic: params.topic,
+    cancelLink: `https://cyphral.co.uk/book/cancel#t=${encodeURIComponent(params.cancelToken)}`,
+  });
   return sendViaResend({
     apiKey: params.apiKey,
     to: params.to,
     replyTo: OWNER_REPLY_TO,
-    subject: 'Your call with Cyphral is booked',
-    text,
-    html,
+    ...content,
     idempotencyKey: params.idempotencyKey,
     fetchImpl: params.fetchImpl,
   });
@@ -249,56 +179,51 @@ export async function sendBookerConfirmationEmail(params: BookerConfirmationPara
 export interface OwnerNotificationParams {
   apiKey: string;
   to: string;
+  bookingId: string;
   name: string;
   email: string;
   company: string;
   topic: string;
   note: string;
   slotStartIso: string;
+  slotEndIso: string;
   visitorTz: string;
   idempotencyKey: string;
   fetchImpl?: typeof fetch;
+  /** Injectable for tests; defaults to the real current instant. */
+  nowIso?: string;
 }
 
-/** TODO (Phase 4): attach booking.ics (text/calendar; method=PUBLISH). */
 export async function sendOwnerNotificationEmail(params: OwnerNotificationParams): Promise<SendResult> {
-  const visitorTime = formatSlotTime(params.slotStartIso, params.visitorTz);
-  const ukTime = formatSlotTime(params.slotStartIso, 'Europe/London');
-  const topicLabel = TOPIC_LABELS[params.topic] ?? params.topic;
-  const company = params.company || '(not given)';
-  const note = params.note || '(none)';
+  const content = buildOwnerNotificationEmail({
+    name: params.name,
+    email: params.email,
+    company: params.company,
+    topic: params.topic,
+    note: params.note,
+    slotStartIso: params.slotStartIso,
+    visitorTz: params.visitorTz,
+  });
 
-  const text = [
-    'New call booked.',
-    '',
-    `Name: ${params.name}`,
-    `Email: ${params.email}`,
-    `Company: ${company}`,
-    `Topic: ${topicLabel}`,
-    `Time: ${ukTime} (UK) / ${visitorTime} (their time, ${params.visitorTz})`,
-    '',
-    'Note:',
-    note,
-  ].join('\n');
-
-  const html = [
-    '<p>New call booked.</p>',
-    `<p>Name: ${escapeHtml(params.name)}<br>`,
-    `Email: ${escapeHtml(params.email)}<br>`,
-    `Company: ${escapeHtml(company)}<br>`,
-    `Topic: ${escapeHtml(topicLabel)}<br>`,
-    `Time: ${escapeHtml(ukTime)} (UK) / ${escapeHtml(visitorTime)} (their time, ${escapeHtml(params.visitorTz)})</p>`,
-    `<p>Note:<br>${escapeHtml(note).replace(/\n/g, '<br>')}</p>`,
-  ].join('\n');
+  const ics = buildBookingIcs({
+    bookingId: params.bookingId,
+    slotStartUtcIso: params.slotStartIso,
+    slotEndUtcIso: params.slotEndIso,
+    dtstampUtcIso: params.nowIso ?? new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
+    name: params.name,
+    email: params.email,
+    company: params.company,
+    topicLabel: topicLabel(params.topic),
+    note: params.note,
+  });
 
   return sendViaResend({
     apiKey: params.apiKey,
     to: params.to,
     replyTo: params.email,
-    subject: `New call booked: ${ukTime}`,
-    text,
-    html,
+    ...content,
     idempotencyKey: params.idempotencyKey,
+    attachments: [{ filename: 'booking.ics', content: icsToBase64(ics), content_type: 'text/calendar; method=PUBLISH' }],
     fetchImpl: params.fetchImpl,
   });
 }
@@ -318,29 +243,18 @@ export interface CancellationEmailsParams {
 export async function sendCancellationEmails(
   params: CancellationEmailsParams,
 ): Promise<{ booker: SendResult; owner: SendResult }> {
-  const visitorTime = formatSlotTime(params.slotStartIso, params.visitorTz);
-  const ukTime = formatSlotTime(params.slotStartIso, 'Europe/London');
+  const bookerContent = buildCancelledBookerEmail({
+    name: params.bookerName,
+    slotStartIso: params.slotStartIso,
+    visitorTz: params.visitorTz,
+  });
+  const ownerContent = buildCancelledOwnerEmail({ slotStartIso: params.slotStartIso });
 
   const booker = await sendViaResend({
     apiKey: params.apiKey,
     to: params.bookerEmail,
     replyTo: OWNER_REPLY_TO,
-    subject: 'Your call with Cyphral has been cancelled',
-    text: [
-      `Dear ${params.bookerName},`,
-      '',
-      `Your call (${visitorTime}, your time) has been cancelled.`,
-      '',
-      'If you would like to rebook, you can do so at https://cyphral.co.uk/book.',
-      '',
-      'Aisha, Cyphral',
-    ].join('\n'),
-    html: [
-      `<p>Dear ${escapeHtml(params.bookerName)},</p>`,
-      `<p>Your call (${escapeHtml(visitorTime)}, your time) has been cancelled.</p>`,
-      '<p>If you would like to rebook, you can do so at <a href="https://cyphral.co.uk/book">cyphral.co.uk/book</a>.</p>',
-      '<p>Aisha, Cyphral</p>',
-    ].join('\n'),
+    ...bookerContent,
     idempotencyKey: params.idempotencyKeyBooker,
     fetchImpl: params.fetchImpl,
   });
@@ -349,15 +263,32 @@ export async function sendCancellationEmails(
     apiKey: params.apiKey,
     to: params.ownerEmail,
     replyTo: params.bookerEmail,
-    subject: `Cancelled: ${ukTime}`,
-    text: [`The call at ${ukTime} (UK) has been cancelled.`, '', 'Remember to delete it from your calendar.'].join('\n'),
-    html: [
-      `<p>The call at ${escapeHtml(ukTime)} (UK) has been cancelled.</p>`,
-      '<p>Remember to delete it from your calendar.</p>',
-    ].join('\n'),
+    ...ownerContent,
     idempotencyKey: params.idempotencyKeyOwner,
     fetchImpl: params.fetchImpl,
   });
 
   return { booker, owner };
+}
+
+export interface MailFailedAlertParams {
+  apiKey: string;
+  to: string;
+  bookingId: string;
+  slotStartIso: string;
+  idempotencyKey: string;
+  fetchImpl?: typeof fetch;
+}
+
+/** Used by Phase 5's cron job — not called anywhere yet. */
+export async function sendMailFailedAlert(params: MailFailedAlertParams): Promise<SendResult> {
+  const content = buildMailFailedAlertEmail({ bookingId: params.bookingId, slotStartIso: params.slotStartIso });
+  return sendViaResend({
+    apiKey: params.apiKey,
+    to: params.to,
+    replyTo: OWNER_REPLY_TO,
+    ...content,
+    idempotencyKey: params.idempotencyKey,
+    fetchImpl: params.fetchImpl,
+  });
 }

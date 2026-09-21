@@ -10,7 +10,10 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "generate-types": "wrangler types"
+    "generate-types": "wrangler types",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "fetch-bank-holidays": "node scripts/fetch-bank-holidays.mjs"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",
@@ -24,5 +27,8 @@
   },
   "overrides": {
     "vite": "^7"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.1"
   }
 }

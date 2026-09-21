@@ -84,48 +84,80 @@ describe('computeAvailableSlots — expected weekly table', () => {
   });
 });
 
-// Isolated from real-world bank holidays (a single far-future sentinel date
-// gives "coverage" without risking a real holiday landing in a test week —
-// as Good Friday/Easter Monday do near the March transition some years).
-const SYNTHETIC_BANK_HOLIDAYS = ['2030-01-01'];
-
 describe('computeAvailableSlots — DST transition weeks', () => {
-  it('October 2026: the week before the clock change is BST, the week after is GMT', () => {
-    const grouped = groupByLondonDate(
-      run({ now: new Date('2026-10-10T00:00:00Z'), bankHolidayDates: SYNTHETIC_BANK_HOLIDAYS }),
-    );
+  // Real bank holiday data (imported at the top of this file) throughout —
+  // no synthetic substitution. 26 & 29 March 2027 (Good Friday / Easter
+  // Monday) are real bank holidays that land either side of that year's
+  // clock change, so the assertions below deliberately use OTHER weekdays
+  // that aren't holidays; the holiday exclusion itself is checked as its
+  // own test further down, against real dates and real data.
+
+  it('October 2026: Mon-Wed afternoon slots and the Friday jummah gap flip on the transition date', () => {
+    const before = run({ now: new Date('2026-10-10T00:00:00Z') }); // week of 19 Oct, still BST
+    const after = run({ now: new Date('2026-10-24T00:00:00Z') }); // week of 26 Oct, now GMT
+    const beforeGrouped = groupByLondonDate(before);
+    const afterGrouped = groupByLondonDate(after);
 
     const bstMonToWed = ['10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '16:00', '16:30'];
     const gmtMonToWed = ['10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '15:00', '15:30', '16:00', '16:30'];
 
-    // Before the 25 Oct 2026 transition (still BST)
-    expect(grouped['2026-10-19']).toEqual(bstMonToWed); // Mon
-    expect(grouped['2026-10-21']).toEqual(bstMonToWed); // Wed
-    expect(grouped['2026-10-23']).toEqual(['10:00', '10:30', '11:00', '11:30', '15:00', '15:30', '16:00', '16:30']); // Fri, BST column
+    expect(beforeGrouped['2026-10-19']).toEqual(bstMonToWed); // Mon, BST
+    expect(beforeGrouped['2026-10-21']).toEqual(bstMonToWed); // Wed, BST
+    expect(afterGrouped['2026-10-26']).toEqual(gmtMonToWed); // Mon, GMT
+    expect(afterGrouped['2026-10-28']).toEqual(gmtMonToWed); // Wed, GMT
 
-    // After the transition (now GMT)
-    expect(grouped['2026-10-26']).toEqual(gmtMonToWed); // Mon
-    expect(grouped['2026-10-28']).toEqual(gmtMonToWed); // Wed
-    expect(grouped['2026-10-30']).toEqual(['10:00', '10:30', '15:00', '15:30', '16:00', '16:30']); // Fri, GMT column
+    // Same facts again, but against the raw UTC instants computeAvailableSlots
+    // actually returns, not the test's own local-time relabelling.
+    expect(before).toContain('2026-10-19T09:00:00Z'); // Mon 10:00 BST, first slot of the week
+    expect(before).toContain('2026-10-19T12:30:00Z'); // Mon 13:30 BST, last slot before the Qaidah gap
+    expect(after).toContain('2026-10-26T10:00:00Z'); // Mon 10:00 GMT, first slot — one real hour later in UTC
+    expect(after).not.toContain('2026-10-26T13:30:00Z'); // Mon 13:30 GMT would collide with the Qaidah buffer in GMT; not offered
+
+    // Friday: BST keeps 11:00/11:30, GMT loses them to the winter jummah block + buffer.
+    expect(before).toContain('2026-10-23T10:00:00Z'); // Fri 11:00 BST
+    expect(before).toContain('2026-10-23T10:30:00Z'); // Fri 11:30 BST
+    expect(after).not.toContain('2026-10-30T11:00:00Z'); // Fri 11:00 GMT — removed
+    expect(after).not.toContain('2026-10-30T11:30:00Z'); // Fri 11:30 GMT — removed
+    expect(after).toContain('2026-10-30T10:00:00Z'); // Fri 10:00 GMT still offered
+    expect(after).toContain('2026-10-30T10:30:00Z'); // Fri 10:30 GMT still offered
   });
 
-  it('March 2027: the week before the clock change is GMT, the week after is BST', () => {
-    const grouped = groupByLondonDate(
-      run({ now: new Date('2027-03-15T00:00:00Z'), bankHolidayDates: SYNTHETIC_BANK_HOLIDAYS }),
-    );
+  it('March 2027: the same flip happens on non-holiday weekdays either side of the transition', () => {
+    // Tue/Wed instead of Mon/Wed, and Fridays a week away from the transition,
+    // to sidestep 26 & 29 March (see the dedicated holiday test below).
+    const before = run({ now: new Date('2027-03-08T00:00:00Z') }); // week of 15 Mar + Fri 19 Mar, still GMT
+    const after = run({ now: new Date('2027-03-22T00:00:00Z') }); // week of 30 Mar, now BST
+    const beforeGrouped = groupByLondonDate(before);
+    const afterGrouped = groupByLondonDate(after);
 
-    const gmtMonToWed = ['10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '15:00', '15:30', '16:00', '16:30'];
-    const bstMonToWed = ['10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '16:00', '16:30'];
+    const gmtTueWed = ['10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '15:00', '15:30', '16:00', '16:30'];
+    const bstTueWed = ['10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '16:00', '16:30'];
 
-    // Before the 28 Mar 2027 transition (still GMT)
-    expect(grouped['2027-03-22']).toEqual(gmtMonToWed); // Mon
-    expect(grouped['2027-03-24']).toEqual(gmtMonToWed); // Wed
-    expect(grouped['2027-03-26']).toEqual(['10:00', '10:30', '15:00', '15:30', '16:00', '16:30']); // Fri, GMT column
+    expect(beforeGrouped['2027-03-23']).toEqual(gmtTueWed); // Tue, GMT
+    expect(beforeGrouped['2027-03-24']).toEqual(gmtTueWed); // Wed, GMT
+    expect(afterGrouped['2027-03-30']).toEqual(bstTueWed); // Tue, BST
+    expect(afterGrouped['2027-03-31']).toEqual(bstTueWed); // Wed, BST
 
-    // After the transition (now BST)
-    expect(grouped['2027-03-29']).toEqual(bstMonToWed); // Mon
-    expect(grouped['2027-03-31']).toEqual(bstMonToWed); // Wed
-    expect(grouped['2027-04-02']).toEqual(['10:00', '10:30', '11:00', '11:30', '15:00', '15:30', '16:00', '16:30']); // Fri, BST column
+    expect(before).toContain('2027-03-23T10:00:00Z'); // Tue 10:00 GMT
+    expect(before).not.toContain('2027-03-23T13:30:00Z'); // Tue 13:30 GMT — collides with Qaidah buffer
+    expect(after).toContain('2027-03-30T09:00:00Z'); // Tue 10:00 BST — one real hour earlier in UTC
+    expect(after).not.toContain('2027-03-30T14:00:00Z'); // Tue 15:00 BST — collides with Qaidah buffer in BST
+
+    // Friday, one week away from the transition on each side (19 Mar and 2 Apr — neither is a holiday).
+    expect(before).not.toContain('2027-03-19T11:00:00Z'); // Fri 11:00 GMT — removed (winter jummah)
+    expect(before).not.toContain('2027-03-19T11:30:00Z'); // Fri 11:30 GMT — removed
+    expect(before).toContain('2027-03-19T10:00:00Z'); // Fri 10:00 GMT still offered
+    expect(after).toContain('2027-04-02T10:00:00Z'); // Fri 11:00 BST — kept (summer jummah doesn't reach it)
+    expect(after).toContain('2027-04-02T10:30:00Z'); // Fri 11:30 BST — kept
+  });
+
+  it('excludes Good Friday (26 Mar 2027) and Easter Monday (29 Mar 2027) as real bank holidays', () => {
+    const grouped = groupByLondonDate(run({ now: new Date('2027-03-15T00:00:00Z') }));
+    expect(grouped['2027-03-26']).toBeUndefined(); // Good Friday
+    expect(grouped['2027-03-29']).toBeUndefined(); // Easter Monday
+    // Neighbouring non-holiday weekdays are unaffected.
+    expect(grouped['2027-03-25']).toBeDefined(); // Thu before
+    expect(grouped['2027-03-30']).toBeDefined(); // Tue after
   });
 });
 

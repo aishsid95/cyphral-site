@@ -7,8 +7,10 @@ import {
   countRateEvents,
   createHold,
   expireHeldBooking,
+  findConfirmedBookingByCancelTokenHash,
   findHeldBookingByConfirmTokenHash,
   listLiveBookingIntervals,
+  markMailFailed,
   recordRateEvent,
   type CreateHoldInput,
 } from './db';
@@ -222,10 +224,35 @@ describe('confirmHeldBooking', () => {
 });
 
 describe('findHeldBookingByConfirmTokenHash / expireHeldBooking', () => {
-  it('finds a held booking by its confirm token hash', async () => {
-    await createHold(env.BOOKINGS_DB, holdInput({ ...SLOT_A, id: 'find-me', confirmTokenHash: 'ct-find' }));
+  it('finds a held booking by its confirm token hash, with full booking details', async () => {
+    await createHold(
+      env.BOOKINGS_DB,
+      holdInput({
+        ...SLOT_A,
+        id: 'find-me',
+        confirmTokenHash: 'ct-find',
+        name: 'Ada Lovelace',
+        email: 'ada@example.com',
+        emailKey: 'ada@example.com',
+        company: 'Analytical Engines Ltd',
+        topic: 'automation',
+        note: 'Looking forward to it',
+        visitorTz: 'Europe/Paris',
+      }),
+    );
     const found = await findHeldBookingByConfirmTokenHash(env.BOOKINGS_DB, 'ct-find');
-    expect(found).toEqual({ id: 'find-me', slotStartUtc: SLOT_A.slotStartUtc, slotEndUtc: SLOT_A.slotEndUtc });
+    expect(found).toEqual({
+      id: 'find-me',
+      slotStartUtc: SLOT_A.slotStartUtc,
+      slotEndUtc: SLOT_A.slotEndUtc,
+      name: 'Ada Lovelace',
+      email: 'ada@example.com',
+      emailKey: 'ada@example.com',
+      company: 'Analytical Engines Ltd',
+      topic: 'automation',
+      note: 'Looking forward to it',
+      visitorTz: 'Europe/Paris',
+    });
   });
 
   it('returns null for an unknown token', async () => {
@@ -312,6 +339,68 @@ describe('cancelConfirmedBooking', () => {
     });
     const result = await createHold(env.BOOKINGS_DB, holdInput(SLOT_A));
     expect(result).toEqual({ ok: true });
+  });
+});
+
+describe('findConfirmedBookingByCancelTokenHash', () => {
+  it('finds a confirmed booking by its cancel token hash, with full booking details', async () => {
+    await createHold(
+      env.BOOKINGS_DB,
+      holdInput({
+        ...SLOT_A,
+        id: 'to-confirm-then-find',
+        confirmTokenHash: 'ct-for-find-cancel',
+        name: 'Grace Hopper',
+        email: 'grace@example.com',
+        emailKey: 'grace@example.com',
+        company: null,
+        topic: 'cyber-care',
+        note: null,
+        visitorTz: 'America/New_York',
+      }),
+    );
+    await confirmHeldBooking(env.BOOKINGS_DB, {
+      confirmTokenHash: 'ct-for-find-cancel',
+      nowUtc: '2026-07-19T00:10:00Z',
+      cancelTokenHash: 'cancel-to-find',
+      confirmedAtUtc: '2026-07-19T00:10:00Z',
+    });
+
+    const found = await findConfirmedBookingByCancelTokenHash(env.BOOKINGS_DB, 'cancel-to-find');
+    expect(found).toEqual({
+      id: 'to-confirm-then-find',
+      slotStartUtc: SLOT_A.slotStartUtc,
+      slotEndUtc: SLOT_A.slotEndUtc,
+      name: 'Grace Hopper',
+      email: 'grace@example.com',
+      emailKey: 'grace@example.com',
+      company: null,
+      topic: 'cyber-care',
+      note: null,
+      visitorTz: 'America/New_York',
+    });
+  });
+
+  it('returns null for a held (not yet confirmed) booking', async () => {
+    await createHold(env.BOOKINGS_DB, holdInput({ ...SLOT_A, confirmTokenHash: 'still-held' }));
+    expect(await findConfirmedBookingByCancelTokenHash(env.BOOKINGS_DB, 'still-held')).toBeNull();
+  });
+
+  it('returns null for an unknown token', async () => {
+    expect(await findConfirmedBookingByCancelTokenHash(env.BOOKINGS_DB, 'never-issued')).toBeNull();
+  });
+});
+
+describe('markMailFailed', () => {
+  it('sets mail_failed on the booking without changing its status', async () => {
+    await createHold(env.BOOKINGS_DB, holdInput({ ...SLOT_A, id: 'mail-fail-me', confirmTokenHash: 'ct-mail-fail' }));
+    await markMailFailed(env.BOOKINGS_DB, 'mail-fail-me');
+
+    const row = await env.BOOKINGS_DB
+      .prepare('SELECT status, mail_failed FROM bookings WHERE id = ?')
+      .bind('mail-fail-me')
+      .first<{ status: string; mail_failed: number }>();
+    expect(row).toEqual({ status: 'held', mail_failed: 1 });
   });
 });
 

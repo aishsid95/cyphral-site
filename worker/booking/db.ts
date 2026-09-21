@@ -124,22 +124,75 @@ export async function createHold(db: D1Database, input: CreateHoldInput): Promis
   }
 }
 
-export interface HeldBooking {
+export interface BookingDetails {
   id: string;
   slotStartUtc: string;
   slotEndUtc: string;
+  name: string;
+  email: string;
+  emailKey: string;
+  company: string | null;
+  topic: string;
+  note: string | null;
+  visitorTz: string;
+}
+
+interface BookingDetailsRow {
+  id: string;
+  slot_start_utc: string;
+  slot_end_utc: string;
+  name: string;
+  email: string;
+  email_key: string;
+  company: string | null;
+  topic: string;
+  note: string | null;
+  visitor_tz: string;
+}
+
+function rowToBookingDetails(row: BookingDetailsRow): BookingDetails {
+  return {
+    id: row.id,
+    slotStartUtc: row.slot_start_utc,
+    slotEndUtc: row.slot_end_utc,
+    name: row.name,
+    email: row.email,
+    emailKey: row.email_key,
+    company: row.company,
+    topic: row.topic,
+    note: row.note,
+    visitorTz: row.visitor_tz,
+  };
 }
 
 /** Reads a `held` booking by its confirm-token hash. Does not check expiry — see confirmHeldBooking. */
 export async function findHeldBookingByConfirmTokenHash(
   db: D1Database,
   confirmTokenHash: string,
-): Promise<HeldBooking | null> {
+): Promise<BookingDetails | null> {
   const row = await db
-    .prepare(`SELECT id, slot_start_utc, slot_end_utc FROM bookings WHERE status = 'held' AND confirm_token_hash = ?`)
+    .prepare(
+      `SELECT id, slot_start_utc, slot_end_utc, name, email, email_key, company, topic, note, visitor_tz
+       FROM bookings WHERE status = 'held' AND confirm_token_hash = ?`,
+    )
     .bind(confirmTokenHash)
-    .first<{ id: string; slot_start_utc: string; slot_end_utc: string }>();
-  return row ? { id: row.id, slotStartUtc: row.slot_start_utc, slotEndUtc: row.slot_end_utc } : null;
+    .first<BookingDetailsRow>();
+  return row ? rowToBookingDetails(row) : null;
+}
+
+/** Reads a `confirmed` booking by its cancel-token hash. Does not check the slot's start time — see cancelConfirmedBooking. */
+export async function findConfirmedBookingByCancelTokenHash(
+  db: D1Database,
+  cancelTokenHash: string,
+): Promise<BookingDetails | null> {
+  const row = await db
+    .prepare(
+      `SELECT id, slot_start_utc, slot_end_utc, name, email, email_key, company, topic, note, visitor_tz
+       FROM bookings WHERE status = 'confirmed' AND cancel_token_hash = ?`,
+    )
+    .bind(cancelTokenHash)
+    .first<BookingDetailsRow>();
+  return row ? rowToBookingDetails(row) : null;
 }
 
 /** Marks a specific held booking expired (used when a re-checked availability no longer allows it). Idempotent. */
@@ -193,6 +246,11 @@ export async function cancelConfirmedBooking(
     .run();
 
   return (result.meta.changes ?? 0) > 0 ? { ok: true } : { ok: false, reason: 'link_expired' };
+}
+
+/** Marks a booking's post-confirmation email as failed, for the cron job to alert on. Does not roll back the booking. */
+export async function markMailFailed(db: D1Database, id: string): Promise<void> {
+  await db.prepare(`UPDATE bookings SET mail_failed = 1 WHERE id = ?`).bind(id).run();
 }
 
 export interface LiveBookingInterval {

@@ -14,7 +14,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:d1": "vitest run --config vitest.workers.config.ts",
-    "test:all": "npm run test && npm run test:d1",
+    "pretest:integration": "npm run build && node scripts/prepare-integration-test-config.mjs",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:all": "npm run test && npm run test:d1 && npm run test:integration",
     "fetch-bank-holidays": "node scripts/fetch-bank-holidays.mjs"
   },
   "dependencies": {
@@ -25,6 +27,7 @@
     "astro": "^6.2.1",
     "tailwindcss": "^4.2.4",
     "typescript": "^5.9.3",
+    "valibot": "^1.5.0",
     "wrangler": "^4.87.0"
   },
   "overrides": {

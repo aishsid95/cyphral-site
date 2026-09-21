@@ -196,8 +196,7 @@ function toMinutes(time: string): number {
   return hour * 60 + minute;
 }
 
-function formatSlotIso(ms: number): string {
-  // ms is always on a whole-minute boundary by construction; strip the
-  // ".000" milliseconds `toISOString` always appends.
+/** Formats a whole-minute UTC instant as "YYYY-MM-DDTHH:mm:00Z" (no milliseconds). Exported for reuse by the API routes. */
+export function formatSlotIso(ms: number): string {
   return new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
 }

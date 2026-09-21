@@ -1,12 +1,21 @@
 {
 	"compatibility_date": "2026-05-01",
-	"compatibility_flags": ["global_fetch_strictly_public"],
+	"compatibility_flags": [
+		"global_fetch_strictly_public"
+	],
 	"name": "cyphral-site",
 	"main": "@astrojs/cloudflare/entrypoints/server",
 	"assets": {
 		"directory": "./dist",
 		"binding": "ASSETS"
 	},
+	"d1_databases": [
+		{
+			"binding": "BOOKINGS_DB",
+			"database_name": "cyphral-bookings",
+			"database_id": "60a310c8-07f0-4a92-9529-e35fd4e5cca6"
+		}
+	],
 	"observability": {
 		"enabled": true
 	}

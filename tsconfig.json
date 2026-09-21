@@ -1,5 +1,11 @@
 {
   "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    // Ambient declarations for the `cloudflare:test` / `cloudflare:workers`
+    // modules used only under worker/booking/test-setup/ and *.workers.test.ts
+    // (the D1-backed Vitest project — see vitest.workers.config.ts).
+    "types": ["@cloudflare/vitest-plugin/types"]
+  },
   "include": [
     ".astro/types.d.ts",
     "**/*",

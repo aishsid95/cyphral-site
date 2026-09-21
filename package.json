@@ -13,6 +13,8 @@
     "generate-types": "wrangler types",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:d1": "vitest run --config vitest.workers.config.ts",
+    "test:all": "npm run test && npm run test:d1",
     "fetch-bank-holidays": "node scripts/fetch-bank-holidays.mjs"
   },
   "dependencies": {
@@ -29,6 +31,7 @@
     "vite": "^7"
   },
   "devDependencies": {
-    "vitest": "^5.0.1"
+    "@cloudflare/vitest-plugin": "^1.2.0",
+    "vitest": "^4.1.11"
   }
 }

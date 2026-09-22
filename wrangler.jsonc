@@ -4,7 +4,7 @@
 		"global_fetch_strictly_public"
 	],
 	"name": "cyphral-site",
-	"main": "@astrojs/cloudflare/entrypoints/server",
+	"main": "./src/worker.ts",
 	"assets": {
 		"directory": "./dist",
 		"binding": "ASSETS"
@@ -16,6 +16,11 @@
 			"database_id": "60a310c8-07f0-4a92-9529-e35fd4e5cca6"
 		}
 	],
+	"triggers": {
+		"crons": [
+			"*/30 * * * *"
+		]
+	},
 	"observability": {
 		"enabled": true
 	}

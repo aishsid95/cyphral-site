@@ -18,7 +18,20 @@
  * turnstile.ts, and validation.ts all have direct unit/D1 coverage.
  */
 import { SELF } from 'cloudflare:test';
+import { env, exports } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
+
+/**
+ * `Cloudflare.Exports` (ambient, from worker-configuration.d.ts) is keyed by
+ * a `GlobalProps.mainModule` augmentation that Cloudflare's experimental
+ * typed-exports feature would need us to wire up separately — not done here
+ * for one test call. The runtime call works (proven by the test passing);
+ * this narrows `exports` to just the shape this file actually relies on,
+ * instead of reaching for `any`.
+ */
+const workerExports = exports as unknown as {
+  default: { scheduled(options: { scheduledTime: Date; cron: string }): Promise<{ outcome: string }> };
+};
 
 const ORIGIN = 'https://cyphral.co.uk';
 
@@ -40,9 +53,27 @@ describe('unrelated routes are unaffected by the booking routes', () => {
     expect(res.status).toBe(404);
   });
 
-  it('the existing /api/contact endpoint still works', async () => {
+  it('GET /api/contact is still not allowed', async () => {
     const res = await SELF.fetch('https://cyphral.co.uk/api/contact', { method: 'GET' });
     expect(res.status).toBe(405); // GET not allowed there, same as before this feature existed
+  });
+
+  it('POST /api/contact reaches the real handler and runs its own logic (honeypot path — no live email is sent)', async () => {
+    // A genuine POST, not just a method check — contact.ts's honeypot branch
+    // returns success without ever calling Resend, so this proves the real
+    // route and its real code run, with no risk of sending a live email
+    // using whatever key happens to be in this environment's .dev.vars.
+    // CF-Connecting-IP is required here: a real Cloudflare edge request
+    // always carries it, and @astrojs/cloudflare's Astro.clientAddress
+    // (which contact.ts reads) throws without it — this test harness
+    // doesn't synthesize that header on its own the way the real edge does.
+    const res = await SELF.fetch('https://cyphral.co.uk/api/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '203.0.113.5' },
+      body: JSON.stringify({ name: 'Test', email: 'test@example.com', message: 'hello', company: 'i-am-a-bot' }),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
   });
 });
 
@@ -279,5 +310,60 @@ describe('/book* pages and their headers, served via the real ASSETS binding + p
         expect(full).toMatch(/\bsrc=/);
       }
     }
+  });
+});
+
+describe('scheduled() — the cron handler added alongside fetch in src/worker.ts', () => {
+  // src/worker.ts imports @astrojs/cloudflare/handler, which imports an
+  // Astro-internal Vite virtual module that only resolves inside Astro's
+  // own build — confirmed empirically that a test file can't import
+  // src/worker.ts directly and have Vite re-resolve it (the module
+  // resolution issue Cloudflare documents at
+  // developers.cloudflare.com/workers/testing/vitest-integration/known-issues/#module-resolution).
+  // So this reaches into the *already-running*, already-bundled worker via
+  // exports.default.scheduled() instead of re-importing source — the same
+  // instance SELF.fetch() talks to elsewhere in this file. That call is
+  // Cloudflare-documented as experimental and needs the
+  // service_binding_extra_handlers compatibility flag; see
+  // scripts/prepare-integration-test-config.mjs for why that's added only
+  // to the test-only stripped config, never to the real wrangler.jsonc.
+  it('runs the maintenance sweep without throwing, against the real D1 binding', async () => {
+    // A booking whose hold has already expired, so the sweep has visible
+    // work to do — proves this isn't a no-op.
+    await env.BOOKINGS_DB.batch([
+      env.BOOKINGS_DB.prepare('DELETE FROM bookings'),
+      env.BOOKINGS_DB.prepare('DELETE FROM rate_events'),
+    ]);
+    await env.BOOKINGS_DB
+      .prepare(
+        `INSERT INTO bookings (
+           id, slot_start_utc, slot_end_utc, status, name, email, email_key, topic,
+           visitor_tz, confirm_token_hash, hold_expires_at, created_at, purge_after
+         ) VALUES (?, ?, ?, 'held', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        'scheduled-test-stale-hold',
+        '2026-07-20T09:00:00Z',
+        '2026-07-20T09:30:00Z',
+        'Test',
+        'test@example.com',
+        'test@example.com',
+        'ce-readiness',
+        'Europe/London',
+        'ct-scheduled-test',
+        '2020-01-01T00:00:00Z', // long expired
+        '2020-01-01T00:00:00Z',
+        '2099-01-01T00:00:00Z', // not due for purge — proves the row was expired, not deleted
+      )
+      .run();
+
+    const result = await workerExports.default.scheduled({ scheduledTime: new Date(), cron: '*/30 * * * *' });
+    expect(result.outcome).toBe('ok');
+
+    const row = await env.BOOKINGS_DB
+      .prepare('SELECT status FROM bookings WHERE id = ?')
+      .bind('scheduled-test-stale-hold')
+      .first<{ status: string }>();
+    expect(row?.status).toBe('expired');
   });
 });

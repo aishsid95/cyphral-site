@@ -40,7 +40,7 @@ export function buildConfirmedEmail(params: BuildConfirmedEmailParams): Confirme
     '',
     'To change the time, cancel using the link below and book again.',
     '',
-    params.cancelLink,
+    `Cancel your call: ${params.cancelLink}`,
     '',
     'Best wishes,',
     'Aisha, Cyphral',
@@ -53,7 +53,7 @@ export function buildConfirmedEmail(params: BuildConfirmedEmailParams): Confirme
     `<p>It's a free 30-minute Cyber Essentials gap check. If there's anything you'd like me to look at beforehand, just reply to this email.</p>`,
     '<p>I will send a calendar invite with the video call link before we speak.</p>',
     `<p>To change the time, cancel using the link below and book again.</p>`,
-    `<p><a href="${escapeHtml(params.cancelLink)}">${escapeHtml(params.cancelLink)}</a></p>`,
+    `<p>Cancel your call: <a href="${escapeHtml(params.cancelLink)}">${escapeHtml(params.cancelLink)}</a></p>`,
     '<p>Best wishes,<br>Aisha, Cyphral</p>',
   ]);
 

@@ -18,7 +18,8 @@ export const defaultCronDeps: RunBookingMaintenanceDeps = { sendMailFailedAlert 
 export interface RunBookingMaintenanceParams {
   db: D1Database;
   nowUtc: string;
-  resendApiKey: string;
+  /** Undefined when the BOOKING_RESEND_API_KEY secret isn't set — the sweep still runs, only the alert step is skipped. */
+  resendApiKey: string | undefined;
   ownerEmail: string;
 }
 
@@ -60,16 +61,24 @@ interface MailFailedRow {
 /**
  * Alerts Aisha once per booking with mail_failed=1 and mail_alert_sent=0.
  * A failure sending or updating one row is caught and counted, never
- * thrown — one bad row must not stop the rest of the sweep.
+ * thrown — one bad row must not stop the rest of the sweep. If the Resend
+ * key isn't configured, skips straight to returning zero counts — no D1
+ * read, no doomed network call — leaving the rest of the sweep (expiry,
+ * both purges) completely unaffected, since those already run before this
+ * is ever called.
  */
 async function alertOnFailedMail(
   db: D1Database,
-  resendApiKey: string,
+  resendApiKey: string | undefined,
   ownerEmail: string,
   deps: RunBookingMaintenanceDeps,
 ): Promise<{ sent: number; failed: number }> {
   let sent = 0;
   let failed = 0;
+
+  if (!resendApiKey) {
+    return { sent, failed };
+  }
 
   let rows: MailFailedRow[] = [];
   try {

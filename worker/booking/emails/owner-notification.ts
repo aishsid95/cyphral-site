@@ -4,7 +4,7 @@
  * HTML-escaped — this is the one email where the note is ever shown, and
  * it must always render as literal text, never as markup.
  */
-import { escapeHtml, formatSlotTime, friendlyTzName, topicLabel, wrapHtml } from './shared';
+import { escapeHtml, formatSlotTime, friendlyTzCityName, topicLabel, wrapHtml } from './shared';
 
 export interface OwnerNotificationContent {
   subject: string;
@@ -28,7 +28,7 @@ export function buildOwnerNotificationEmail(params: BuildOwnerNotificationParams
   const topic = topicLabel(params.topic);
   const company = params.company || '(not given)';
   const note = params.note || '(none)';
-  const visitorZoneLabel = friendlyTzName(params.visitorTz);
+  const visitorCity = friendlyTzCityName(params.visitorTz);
 
   const text = [
     'New call booked.',
@@ -37,7 +37,7 @@ export function buildOwnerNotificationEmail(params: BuildOwnerNotificationParams
     `Email: ${params.email}`,
     `Company: ${company}`,
     `Topic: ${topic}`,
-    `Time: ${ukTime} (UK) / ${visitorTime} (their time, ${visitorZoneLabel})`,
+    `Time: ${ukTime} (UK) / ${visitorTime} (their time: ${visitorCity})`,
     '',
     'Note:',
     note,
@@ -51,7 +51,7 @@ export function buildOwnerNotificationEmail(params: BuildOwnerNotificationParams
     `Email: ${escapeHtml(params.email)}<br>`,
     `Company: ${escapeHtml(company)}<br>`,
     `Topic: ${escapeHtml(topic)}<br>`,
-    `Time: ${escapeHtml(ukTime)} (UK) / ${escapeHtml(visitorTime)} (their time, ${escapeHtml(visitorZoneLabel)})</p>`,
+    `Time: ${escapeHtml(ukTime)} (UK) / ${escapeHtml(visitorTime)} (their time: ${escapeHtml(visitorCity)})</p>`,
     `<p>Note:<br>${escapeHtml(note).replace(/\n/g, '<br>')}</p>`,
     '<p>Calendar file attached. Add it, then send the video call link before you speak.</p>',
   ]);

@@ -32,16 +32,21 @@ export function formatSlotTime(slotStartIso: string, timeZone: string): string {
 }
 
 /**
- * "Europe/Paris" -> "Paris time". IANA zone IDs are Continent/City (or, for a
- * few, Continent/Region/City) by construction, so taking the last path
- * segment and swapping underscores for spaces gives a readable name for
- * any zone a visitor's browser reports, without a lookup table to maintain.
- * Europe/London is never passed through this — the UK line always reads
- * "UK time" as its own fixed string, everywhere it appears.
+ * "Europe/Paris" -> "Paris". IANA zone IDs are Continent/City (or, for a few,
+ * Continent/Region/City) by construction, so taking the last path segment
+ * and swapping underscores for spaces gives a readable name for any zone a
+ * visitor's browser reports, without a lookup table to maintain. Europe/
+ * London is never passed through this — the UK line always reads "UK time"
+ * as its own fixed string, everywhere it appears.
  */
-export function friendlyTzName(timeZone: string): string {
+export function friendlyTzCityName(timeZone: string): string {
   const lastSegment = timeZone.split('/').pop() ?? timeZone;
-  return `${lastSegment.replace(/_/g, ' ')} time`;
+  return lastSegment.replace(/_/g, ' ');
+}
+
+/** "Europe/Paris" -> "Paris time" — friendlyTzCityName with " time" appended, for the "(Paris time)" phrasing. */
+export function friendlyTzName(timeZone: string): string {
+  return `${friendlyTzCityName(timeZone)} time`;
 }
 
 export const TOPIC_LABELS: Record<string, string> = {

@@ -24,8 +24,9 @@ describe('buildOwnerNotificationEmail', () => {
     expect(content.text).toContain('Automation');
     expect(content.text).toContain('Looking forward to it');
     expect(content.text).toContain('UK');
-    expect(content.text).toContain('Paris time');
+    expect(content.text).toContain('(their time: Paris)');
     expect(content.text).not.toContain('Europe/Paris');
+    expect(content.text).not.toContain('Paris time');
   });
 
   it('shows (not given) and (none) for absent company/note', () => {

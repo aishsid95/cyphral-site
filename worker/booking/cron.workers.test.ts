@@ -130,6 +130,27 @@ describe('runBookingMaintenance — alerting on mail_failed', () => {
     await env.BOOKINGS_DB.prepare('UPDATE bookings SET mail_failed = 1 WHERE id = ?').bind(id).run();
   }
 
+  it('skips the alert step entirely when the Resend key is missing, without touching D1 or calling the sender', async () => {
+    await bookingWithMailFailed('failed-no-key');
+    const sendMailFailedAlert = vi.fn(async () => ({ ok: true }) as const);
+
+    const result = await runBookingMaintenance(
+      { db: env.BOOKINGS_DB, nowUtc: '2026-07-19T01:00:00Z', resendApiKey: undefined, ownerEmail: 'hello@cyphral.co.uk' },
+      { sendMailFailedAlert },
+    );
+
+    expect(result.alertsSent).toBe(0);
+    expect(result.alertsFailed).toBe(0);
+    expect(sendMailFailedAlert).not.toHaveBeenCalled();
+
+    // The booking is untouched — still eligible for a real alert once the key is configured.
+    const row = await env.BOOKINGS_DB
+      .prepare('SELECT mail_alert_sent FROM bookings WHERE id = ?')
+      .bind('failed-no-key')
+      .first<{ mail_alert_sent: number }>();
+    expect(row?.mail_alert_sent).toBe(0);
+  });
+
   it('alerts once for a mail_failed booking and marks it as alerted', async () => {
     await bookingWithMailFailed('failed-1');
     const sendMailFailedAlert = vi.fn(async () => ({ ok: true }) as const);
@@ -237,5 +258,30 @@ describe('runBookingMaintenance — full sweep', () => {
     );
 
     expect(result).toEqual({ expiredHolds: 1, purgedBookings: 1, purgedRateEvents: 1, alertsSent: 0, alertsFailed: 0 });
+  });
+
+  it('still expires and purges when the Resend key is missing — only the alert step is skipped', async () => {
+    await createHold(env.BOOKINGS_DB, holdInput({ id: 'stale-hold-no-key', ...SLOT_A, holdExpiresAtUtc: '2026-07-19T00:15:00Z' }));
+    await createHold(env.BOOKINGS_DB, holdInput({ id: 'old-booking-no-key', ...SLOT_B, purgeAfterUtc: '2026-08-01T00:00:00Z' }));
+    await env.BOOKINGS_DB.prepare("UPDATE bookings SET status = 'confirmed' WHERE id = ?").bind('old-booking-no-key').run();
+    await env.BOOKINGS_DB
+      .prepare('INSERT INTO rate_events (bucket, subject_hash, created_at) VALUES (?, ?, ?)')
+      .bind('hold:ip', 'stale-event-no-key', '2026-07-01T00:00:00Z')
+      .run();
+
+    const result = await runBookingMaintenance({
+      db: env.BOOKINGS_DB,
+      nowUtc: '2026-09-01T00:00:00Z',
+      resendApiKey: undefined,
+      ownerEmail: 'hello@cyphral.co.uk',
+    });
+
+    expect(result).toEqual({ expiredHolds: 1, purgedBookings: 1, purgedRateEvents: 1, alertsSent: 0, alertsFailed: 0 });
+
+    const staleHold = await env.BOOKINGS_DB
+      .prepare('SELECT status FROM bookings WHERE id = ?')
+      .bind('stale-hold-no-key')
+      .first<{ status: string }>();
+    expect(staleHold?.status).toBe('expired');
   });
 });

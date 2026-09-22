@@ -22,11 +22,27 @@ export default {
       runBookingMaintenance({
         db: env.BOOKINGS_DB,
         nowUtc: new Date().toISOString(),
+        // Undefined, not thrown, if the secret isn't set — cron.ts skips
+        // only the alert step in that case; expiry and both purges still run.
         resendApiKey: env.BOOKING_RESEND_API_KEY,
         ownerEmail: 'hello@cyphral.co.uk',
-      }).then((result) => {
-        console.log(JSON.stringify({ event: 'booking_maintenance_run', ...result }));
-      }),
+      })
+        .then((result) => {
+          // CronRunResult is five counts, nothing else — no booking id, no
+          // email, no name ever passes through this log line.
+          console.log(JSON.stringify({ event: 'booking_maintenance_run', ...result }));
+        })
+        .catch((err: unknown) => {
+          // Error *name* only (e.g. "TypeError") — never err.message, which
+          // could echo back a value from whatever failed (a row's data, a
+          // query fragment) into the logs.
+          console.log(
+            JSON.stringify({
+              event: 'booking_maintenance_failed',
+              errorName: err instanceof Error ? err.name : 'Unknown',
+            }),
+          );
+        }),
     );
   },
 } satisfies ExportedHandler<Env>;

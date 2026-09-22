@@ -33,8 +33,11 @@ describe('buildConfirmedEmail', () => {
     expect(text).toContain('just reply to this email');
   });
 
-  it('tells the booker to cancel and rebook to change the time', () => {
-    expect(buildConfirmedEmail(PARAMS).text).toContain('To change the time, cancel using the link below and book again.');
+  it('tells the booker to cancel and rebook to change the time, then labels the link below it', () => {
+    const content = buildConfirmedEmail(PARAMS);
+    expect(content.text).toContain('To change the time, cancel using the link below and book again.');
+    expect(content.text).toContain(`Cancel your call: ${PARAMS.cancelLink}`);
+    expect(content.html).toContain(`Cancel your call: <a href="${PARAMS.cancelLink}">`);
   });
 
   it('is signed "Best wishes," then "Aisha, Cyphral"', () => {

@@ -16,20 +16,21 @@ export function buildCancelledBookerEmail(params: BuildCancelledBookerEmailParam
   const visitorTime = formatSlotTime(params.slotStartIso, params.visitorTz);
 
   const text = [
-    `Dear ${params.name},`,
+    `Hello ${params.name},`,
     '',
     `Your call (${visitorTime}, your time) has been cancelled.`,
     '',
     'If you would like to book another time, you can do so here: https://cyphral.co.uk/book',
     '',
+    'Best wishes,',
     'Aisha, Cyphral',
   ].join('\n');
 
   const html = wrapHtml([
-    `<p>Dear ${escapeHtml(params.name)},</p>`,
+    `<p>Hello ${escapeHtml(params.name)},</p>`,
     `<p>Your call (${escapeHtml(visitorTime)}, your time) has been cancelled.</p>`,
     '<p>If you would like to book another time, you can do so at <a href="https://cyphral.co.uk/book">cyphral.co.uk/book</a>.</p>',
-    '<p>Aisha, Cyphral</p>',
+    '<p>Best wishes,<br>Aisha, Cyphral</p>',
   ]);
 
   return { subject: 'Your call with Cyphral has been cancelled', text, html };

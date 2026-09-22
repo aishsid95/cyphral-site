@@ -24,17 +24,30 @@ export function formatSlotTime(slotStartIso: string, timeZone: string): string {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
-    hour: 'numeric',
+    hour: '2-digit',
     minute: '2-digit',
-    hour12: true,
+    hourCycle: 'h23',
   });
   return formatter.format(new Date(slotStartIso));
 }
 
+/**
+ * "Europe/Paris" -> "Paris time". IANA zone IDs are Continent/City (or, for a
+ * few, Continent/Region/City) by construction, so taking the last path
+ * segment and swapping underscores for spaces gives a readable name for
+ * any zone a visitor's browser reports, without a lookup table to maintain.
+ * Europe/London is never passed through this — the UK line always reads
+ * "UK time" as its own fixed string, everywhere it appears.
+ */
+export function friendlyTzName(timeZone: string): string {
+  const lastSegment = timeZone.split('/').pop() ?? timeZone;
+  return `${lastSegment.replace(/_/g, ' ')} time`;
+}
+
 export const TOPIC_LABELS: Record<string, string> = {
-  'ce-readiness': 'Cyber Essentials readiness',
-  'ce-renewal': 'Cyber Essentials renewal',
-  'cyber-care': 'Cyber Care',
+  'ce-readiness': 'Getting Cyber Essentials for the first time',
+  'ce-renewal': 'Renewing Cyber Essentials',
+  'cyber-care': 'Ongoing IT security support',
   automation: 'Automation',
   'not-sure': 'Not sure yet',
 };

@@ -3,7 +3,7 @@
  * unlike the verification email, the address has been verified by this
  * point, so there's no relay risk in greeting the person by name.
  */
-import { escapeHtml, formatSlotTime, topicLabel, wrapHtml } from './shared';
+import { escapeHtml, formatSlotTime, friendlyTzName, topicLabel, wrapHtml } from './shared';
 
 export interface ConfirmedEmailContent {
   subject: string;
@@ -22,31 +22,39 @@ export interface BuildConfirmedEmailParams {
 export function buildConfirmedEmail(params: BuildConfirmedEmailParams): ConfirmedEmailContent {
   const visitorTime = formatSlotTime(params.slotStartIso, params.visitorTz);
   const ukTime = formatSlotTime(params.slotStartIso, 'Europe/London');
+  const visitorZoneLabel = friendlyTzName(params.visitorTz);
   const topic = topicLabel(params.topic);
 
   const text = [
-    `Dear ${params.name},`,
+    `Hello ${params.name},`,
     '',
     'Your call with Cyphral is booked.',
     '',
-    `${visitorTime} (${params.visitorTz})`,
+    `${visitorTime} (${visitorZoneLabel})`,
     `${ukTime} UK time`,
     `Topic: ${topic}`,
     '',
+    "It's a free 30-minute Cyber Essentials gap check. If there's anything you'd like me to look at beforehand, just reply to this email.",
+    '',
     'I will send a calendar invite with the video call link before we speak.',
     '',
-    `Need to change or cancel? ${params.cancelLink}`,
+    'To change the time, cancel using the link below and book again.',
     '',
+    params.cancelLink,
+    '',
+    'Best wishes,',
     'Aisha, Cyphral',
   ].join('\n');
 
   const html = wrapHtml([
-    `<p>Dear ${escapeHtml(params.name)},</p>`,
+    `<p>Hello ${escapeHtml(params.name)},</p>`,
     '<p>Your call with Cyphral is booked.</p>',
-    `<p>${escapeHtml(visitorTime)} (${escapeHtml(params.visitorTz)})<br>${escapeHtml(ukTime)} UK time<br>Topic: ${escapeHtml(topic)}</p>`,
+    `<p>${escapeHtml(visitorTime)} (${escapeHtml(visitorZoneLabel)})<br>${escapeHtml(ukTime)} UK time<br>Topic: ${escapeHtml(topic)}</p>`,
+    `<p>It's a free 30-minute Cyber Essentials gap check. If there's anything you'd like me to look at beforehand, just reply to this email.</p>`,
     '<p>I will send a calendar invite with the video call link before we speak.</p>',
-    `<p>Need to change or cancel? <a href="${escapeHtml(params.cancelLink)}">Cancel your call</a></p>`,
-    '<p>Aisha, Cyphral</p>',
+    `<p>To change the time, cancel using the link below and book again.</p>`,
+    `<p><a href="${escapeHtml(params.cancelLink)}">${escapeHtml(params.cancelLink)}</a></p>`,
+    '<p>Best wishes,<br>Aisha, Cyphral</p>',
   ]);
 
   return { subject: 'Your call with Cyphral is booked', text, html };

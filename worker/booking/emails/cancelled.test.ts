@@ -12,6 +12,13 @@ describe('buildCancelledBookerEmail', () => {
     expect(buildCancelledBookerEmail(params).text).toContain('https://cyphral.co.uk/book');
   });
 
+  it('greets with Hello, not Dear, and is signed "Best wishes," then "Aisha, Cyphral"', () => {
+    const text = buildCancelledBookerEmail(params).text;
+    expect(text).toContain('Hello Ada Lovelace,');
+    expect(text).not.toContain('Dear Ada Lovelace');
+    expect(text).toContain('Best wishes,\nAisha, Cyphral');
+  });
+
   it('escapes the name in HTML', () => {
     const content = buildCancelledBookerEmail({ ...params, name: '<script>x</script>' });
     expect(content.html).not.toContain('<script>x</script>');

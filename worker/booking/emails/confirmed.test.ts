@@ -14,16 +14,31 @@ describe('buildConfirmedEmail', () => {
     expect(buildConfirmedEmail(PARAMS).subject).toBe('Your call with Cyphral is booked');
   });
 
-  it('greets the booker by name and includes the topic label and cancel link', () => {
+  it('greets the booker by name (Hello, not Dear) and includes the topic label and cancel link', () => {
     const content = buildConfirmedEmail(PARAMS);
-    expect(content.text).toContain('Dear Ada Lovelace,');
-    expect(content.text).toContain('Cyber Essentials readiness');
+    expect(content.text).toContain('Hello Ada Lovelace,');
+    expect(content.text).not.toContain('Dear Ada Lovelace');
+    expect(content.text).toContain('Getting Cyber Essentials for the first time');
     expect(content.text).toContain(PARAMS.cancelLink);
     expect(content.html).toContain(PARAMS.cancelLink);
   });
 
   it('mentions the calendar invite is coming separately', () => {
     expect(buildConfirmedEmail(PARAMS).text.toLowerCase()).toContain('calendar invite');
+  });
+
+  it('describes the free gap check and invites a reply beforehand', () => {
+    const text = buildConfirmedEmail(PARAMS).text;
+    expect(text).toContain("It's a free 30-minute Cyber Essentials gap check.");
+    expect(text).toContain('just reply to this email');
+  });
+
+  it('tells the booker to cancel and rebook to change the time', () => {
+    expect(buildConfirmedEmail(PARAMS).text).toContain('To change the time, cancel using the link below and book again.');
+  });
+
+  it('is signed "Best wishes," then "Aisha, Cyphral"', () => {
+    expect(buildConfirmedEmail(PARAMS).text).toContain('Best wishes,\nAisha, Cyphral');
   });
 
   it('escapes the name in the HTML part', () => {
@@ -36,9 +51,5 @@ describe('buildConfirmedEmail', () => {
     const content = buildConfirmedEmail(PARAMS);
     expect(content.text).not.toContain('—');
     expect(content.html).not.toContain('—');
-  });
-
-  it('is signed', () => {
-    expect(buildConfirmedEmail(PARAMS).text).toContain('Aisha, Cyphral');
   });
 });

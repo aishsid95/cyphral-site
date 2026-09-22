@@ -16,7 +16,7 @@ describe('buildOwnerNotificationEmail', () => {
     expect(buildOwnerNotificationEmail(PARAMS).subject).toMatch(/^New call booked: /);
   });
 
-  it('includes name, email, company, topic, note, and both time zones', () => {
+  it('includes name, email, company, topic, note, and both time zones as friendly names', () => {
     const content = buildOwnerNotificationEmail(PARAMS);
     expect(content.text).toContain('Ada Lovelace');
     expect(content.text).toContain('ada@example.com');
@@ -24,7 +24,8 @@ describe('buildOwnerNotificationEmail', () => {
     expect(content.text).toContain('Automation');
     expect(content.text).toContain('Looking forward to it');
     expect(content.text).toContain('UK');
-    expect(content.text).toContain('Europe/Paris');
+    expect(content.text).toContain('Paris time');
+    expect(content.text).not.toContain('Europe/Paris');
   });
 
   it('shows (not given) and (none) for absent company/note', () => {

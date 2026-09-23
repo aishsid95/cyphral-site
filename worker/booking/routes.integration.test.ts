@@ -6,16 +6,22 @@
  * unrelated static routes keep working unmodified, is the real D1 binding
  * actually wired through a real `astro build`.
  *
- * Turnstile is exercised with a deliberately invalid token rather than
- * mocked: real verification of a bogus token always fails (whether
- * Cloudflare's endpoint is reachable and says so, or is unreachable and
- * verifyTurnstile's own catch-and-fail-closed behaviour kicks in), so the
- * assertion is robust to network conditions either way. A full mocked
- * happy-path hold -> confirm -> cancel round trip is not attempted at this
- * layer; that would need outbound-fetch mocking wiring this package
- * version doesn't expose in an obvious way, and the round trip's pieces
- * are each already covered: db.ts (Phase 2 + concurrency tests), mail.ts,
- * turnstile.ts, and validation.ts all have direct unit/D1 coverage.
+ * Turnstile is exercised against the real network endpoint rather than
+ * mocked, using dist/server/.dev.vars's Turnstile secret — Cloudflare's
+ * published "always passes" test secret, which (confirmed against the real
+ * endpoint) returns success regardless of the token's content, so it can't
+ * be used here to test rejection. Instead the request body's slotStart is
+ * deliberately far in the future (outside any real availability window),
+ * so the request reliably fails slot-availability validation *after*
+ * Turnstile has genuinely passed — proving the real build's routing wires
+ * all the way through Turnstile's real network round trip into business
+ * logic without crashing, which is what this file's routing/wiring scope
+ * (see above) actually needs. A full mocked happy-path hold -> confirm ->
+ * cancel round trip is not attempted at this layer; that would need
+ * outbound-fetch mocking wiring this package version doesn't expose in an
+ * obvious way, and the round trip's pieces are each already covered: db.ts
+ * (Phase 2 + concurrency tests), mail.ts, turnstile.ts, and validation.ts
+ * all have direct unit/D1 coverage.
  */
 import { SELF } from 'cloudflare:test';
 import { env, exports } from 'cloudflare:workers';
@@ -189,14 +195,14 @@ describe('POST /api/booking/hold — global request handling in the real build',
     expect(await res.json()).toEqual({ status: 'verification_sent', holdMinutes: 15 });
   });
 
-  it('a well-shaped request with a bogus Turnstile token fails the challenge (real or unreachable verification both fail closed)', async () => {
+  it('a well-shaped request reaches real Turnstile verification and then fails on its deliberately unavailable slot', async () => {
     const res = await SELF.fetch('https://cyphral.co.uk/api/booking/hold', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Origin: ORIGIN },
       body: JSON.stringify(validBody),
     });
-    expect(res.status).toBe(403);
-    expect(await res.json()).toEqual({ error: 'challenge_failed' });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'slot_unavailable' });
   });
 
   it('GET is not allowed', async () => {

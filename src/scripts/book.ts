@@ -34,6 +34,8 @@ if (app) {
   const nameErrorEl = document.getElementById('name-error')!;
   const emailEl = document.getElementById('email') as HTMLInputElement;
   const emailErrorEl = document.getElementById('email-error')!;
+  const confirmationEl = document.getElementById('booking-confirmation')!;
+  const confirmationHeadingEl = document.getElementById('booking-confirmation-heading')!;
 
   app.classList.remove('hidden');
 
@@ -287,11 +289,16 @@ if (app) {
       });
 
       if (res.status === 202) {
-        formStatusEl.textContent = 'Check your inbox (and junk folder) for a confirmation link. It expires in 15 minutes.';
-        formStatusEl.classList.remove('hidden');
         formEl.reset();
         selectedSlot = null;
         pickerEl.classList.add('hidden');
+        formEl.classList.add('hidden');
+        confirmationEl.classList.remove('hidden');
+        // Move focus to the panel rather than relying on aria-live alone, so
+        // keyboard users (not just screen-reader users) land somewhere
+        // sensible instead of focus reverting to <body> when the form with
+        // the just-focused submit button gets hidden.
+        confirmationHeadingEl.focus();
         submitted = true;
         return;
       }

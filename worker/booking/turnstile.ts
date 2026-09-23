@@ -43,7 +43,14 @@ export async function verifyTurnstile(params: VerifyTurnstileParams): Promise<Ve
     const data = (await res.json()) as SiteverifyResponse;
     if (data.success !== true) return { ok: false };
     if (data.hostname !== params.expectedHostname) return { ok: false };
-    if (data.action !== params.expectedAction) return { ok: false };
+    // Cloudflare's published test sitekeys never include "action" in their
+    // siteverify response at all (confirmed against the real endpoint, driven
+    // by an actual widget in a real browser — not assumed from docs), so a
+    // strict equality check here would make every test-key flow 403 forever.
+    // Real widgets always echo the action back, so this stays a hard check
+    // whenever the field is present; it's only skipped when Cloudflare omits
+    // it entirely, which in practice only happens with the test keys.
+    if (data.action !== undefined && data.action !== params.expectedAction) return { ok: false };
 
     return { ok: true };
   } catch {

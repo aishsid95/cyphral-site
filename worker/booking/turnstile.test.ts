@@ -57,4 +57,14 @@ describe('verifyTurnstile', () => {
       await verifyTurnstile({ ...BASE_PARAMS, expectedHostname: 'localhost', fetchImpl }),
     ).toEqual({ ok: true });
   });
+
+  it('succeeds when action is absent entirely, matching Cloudflare\'s published test sitekeys', async () => {
+    // Confirmed against the real siteverify endpoint, driven by an actual
+    // widget in a real browser: Cloudflare's test sitekeys never include
+    // "action" in the response at all, unlike real widgets which always echo
+    // it back. A strict equality check would make every test-key flow 403
+    // forever, so an absent field is treated as "not checked", not a mismatch.
+    const fetchImpl = fetchReturning({ success: true, hostname: 'cyphral.co.uk', metadata: { result_with_testing_key: true } });
+    expect(await verifyTurnstile({ ...BASE_PARAMS, fetchImpl })).toEqual({ ok: true });
+  });
 });

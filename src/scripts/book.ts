@@ -306,7 +306,7 @@ if (app) {
       const body = (await res.json().catch(() => ({}))) as { error?: string; fields?: string[] };
 
       if (res.status === 409) {
-        formStatusEl.textContent = 'That time was just taken. Please pick another below — your other details are still filled in.';
+        formStatusEl.textContent = 'That time was just taken. Please pick another below. Your other details are still filled in.';
         formStatusEl.classList.remove('hidden');
         selectedSlot = null;
         selectedSlotEl.textContent = '';

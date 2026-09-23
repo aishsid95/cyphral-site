@@ -121,7 +121,7 @@ const isActive = (path: string) =>
           <Wordmark size="md" />
         </a>
 
-        <nav aria-label="Primary" class="flex items-center gap-6 md:gap-8 text-base">
+        <nav aria-label="Primary" class="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 sm:gap-x-6 md:gap-x-8 text-sm md:text-base">
           <a
             href="/insights"
             aria-current={isActive("/insights") ? "page" : undefined}
@@ -139,9 +139,14 @@ const isActive = (path: string) =>
           >About</a>
           <a
             href="/contact"
+            aria-current={isActive("/contact") ? "page" : undefined}
+            class:list={["transition-colors", isActive("/contact") ? "text-navy-500 font-medium" : "text-neutral-700 hover:text-navy-500"]}
+          >Contact</a>
+          <a
+            href="/book"
             class="inline-flex items-center px-4 py-1.5 leading-none rounded-md bg-navy-500 text-neutral-50 hover:bg-navy-600 transition-colors text-sm md:text-base"
           >
-            Contact
+            Book a call
           </a>
         </nav>
       </div>

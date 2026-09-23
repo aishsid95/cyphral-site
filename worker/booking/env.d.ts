@@ -6,5 +6,7 @@ declare namespace Cloudflare {
   interface Env {
     /** Global daily cap for booking mail, default 40 if unset — see mail.ts. */
     MAIL_DAILY_CAP?: string;
+    /** Overrides the hostname Turnstile verification expects, default "cyphral.co.uk" if unset — see hold.ts and docs/booking-runbook.md's testing section. */
+    TURNSTILE_EXPECTED_HOSTNAME?: string;
   }
 }

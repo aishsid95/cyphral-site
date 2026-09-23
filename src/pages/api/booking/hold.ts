@@ -52,7 +52,15 @@ export const POST: APIRoute = async ({ request }) => {
     db: env.BOOKINGS_DB,
     rateHmacSecret: env.RATE_HMAC_SECRET,
     turnstileSecretKey: env.TURNSTILE_SECRET_KEY,
-    turnstileExpectedHostname: env.ENVIRONMENT === 'development' ? 'localhost' : 'cyphral.co.uk',
+    // "localhost" here would be wrong even for local dev: Cloudflare's
+    // published Turnstile test sitekey/secret pair (the fallback in
+    // book.astro when PUBLIC_TURNSTILE_SITE_KEY isn't set) always reports
+    // hostname "example.com" in its siteverify response, regardless of what
+    // domain actually loaded the widget — confirmed against the real
+    // endpoint, not assumed. TURNSTILE_EXPECTED_HOSTNAME makes this fully
+    // configurable per environment instead of hardcoding a guess; unset
+    // (production) falls back to the real domain.
+    turnstileExpectedHostname: env.TURNSTILE_EXPECTED_HOSTNAME ?? 'cyphral.co.uk',
     bookingResendApiKey: env.BOOKING_RESEND_API_KEY,
     mailDailyCapGlobal: env.MAIL_DAILY_CAP ? Number(env.MAIL_DAILY_CAP) : undefined,
   });

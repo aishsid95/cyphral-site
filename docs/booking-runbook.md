@@ -16,6 +16,7 @@ Operational reference for `/book`. Read `CLAUDE.md` first for the site's general
 3. **Turnstile** — create a widget for `cyphral.co.uk` at the Cloudflare dashboard. You'll get a sitekey (public) and a secret key.
    - Sitekey goes in a `PUBLIC_TURNSTILE_SITE_KEY` build environment variable (Cloudflare Workers Builds → your project → Settings → Environment variables — **not** `wrangler secret put`, sitekeys aren't secret). Until this is set, `/book` falls back to Cloudflare's published test sitekey (`1x00000000000000000000AA`), so local/preview builds work without a real widget.
    - Secret key goes in the `TURNSTILE_SECRET_KEY` Worker secret (below).
+   - Cloudflare's test sitekey/secret pair always reports the visitor's hostname as `example.com` in its siteverify response — not whatever domain actually loaded the widget. `hold.ts` checks the hostname it gets back against `TURNSTILE_EXPECTED_HOSTNAME` (defaulting to `cyphral.co.uk` when unset), so anywhere you're using the test keys — local dev, or a preview deploy that hasn't been given the real widget — needs `TURNSTILE_EXPECTED_HOSTNAME=example.com` set too, or every hold request 403s. Already set this way in `.dev.vars`; see "Testing before go-live" below for previews.
 4. **Resend** — create a second API key, sending access only, restricted to `send.cyphral.co.uk`. This must be a different key from the one the contact form and Gmail "Send mail as" use — see `TURNSTILE_SECRET_KEY` / `BOOKING_RESEND_API_KEY` naming below for why.
 5. **Secrets**, via `npx wrangler secret put <NAME>` (production) and in `.dev.vars` (local — already gitignored, never committed):
    - `TURNSTILE_SECRET_KEY` — from step 3.
@@ -23,7 +24,26 @@ Operational reference for `/book`. Read `CLAUDE.md` first for the site's general
    - `BOOKING_RESEND_API_KEY` — from step 4. Deliberately not named `RESEND_API_KEY`, which is already the contact form's key — a shared name would mean `wrangler secret put RESEND_API_KEY` overwrites one with the other.
    - `MAIL_DAILY_CAP` (optional) — overrides the default cap of 40 booking emails/day if you ever need to.
 6. **Cron trigger** — `wrangler.jsonc`'s `main` needs to point at `./src/worker.ts` (not the adapter's default entrypoint) and a `triggers.crons` entry needs adding, so the 30-minute maintenance sweep actually runs. See the diff in the Phase 5 handover — this wasn't applied automatically (the same `Edit(wrangler.jsonc)` deny rule as the D1 binding).
-7. **Test end to end** on a preview deployment before this goes fully live: book a real slot, confirm it, check the `.ics` file opens correctly in your calendar app, check the slot disappears from `/book`, cancel it, check the slot reappears. Use an inbox at a different provider (e.g. Outlook) to sanity-check deliverability and that link scanners don't trigger a confirm/cancel by themselves.
+7. **Test end to end** on a preview deployment before this goes fully live: book a real slot, confirm it, check the `.ics` file opens correctly in your calendar app, check the slot disappears from `/book`, cancel it, check the slot reappears. Use an inbox at a different provider (e.g. Outlook) to sanity-check deliverability and that link scanners don't trigger a confirm/cancel by themselves. See "Testing before go-live" below for how Turnstile fits in on a `workers.dev` preview URL.
+
+## Testing before go-live
+
+A Cloudflare Workers Builds preview deployment runs on a `<branch>-cyphral-site.<subdomain>.workers.dev` URL, not `cyphral.co.uk` — so the real production Turnstile widget would reject it (wrong hostname) if you pointed a preview at it. Two options, and you don't need to pick just one:
+
+- **Default — test keys everywhere, no widget changes.** Leave `PUBLIC_TURNSTILE_SITE_KEY` unset for the preview build too (same as local dev). `/book` then uses Cloudflare's published test sitekey automatically, which always reports hostname `example.com`. Add a `previews` block to `wrangler.jsonc` so the preview environment expects that instead of `cyphral.co.uk`:
+  ```jsonc
+  "previews": {
+    "vars": {
+      "TURNSTILE_EXPECTED_HOSTNAME": "example.com"
+    }
+  }
+  ```
+  Then set the preview's Turnstile secret (it does not inherit from the production secret):
+  ```
+  npx wrangler preview base-config secret put TURNSTILE_SECRET_KEY
+  ```
+  (paste the same test secret from `.dev.vars`, `1x0000000000000000000000000000000AA`) — or `wrangler preview secret put TURNSTILE_SECRET_KEY --name <branch>` to scope it to one preview branch. Also set `RATE_HMAC_SECRET` and `BOOKING_RESEND_API_KEY` the same way, or the preview's other checks will fail before Turnstile is even reached. This exercises the entire hold → confirm → cancel flow for real, against real D1 and real email, with zero changes to the production Turnstile widget.
+- **Optional — exercise the real widget once before launch.** Turnstile widgets support multiple allowed hostnames (Dashboard → Turnstile → your widget → Settings → Hostname Management → Add Hostnames; up to 10 on the free tier). Add the actual preview hostname, set `PUBLIC_TURNSTILE_SITE_KEY` for the preview build to the real sitekey, and set the preview's `TURNSTILE_SECRET_KEY` to the real secret with `TURNSTILE_EXPECTED_HOSTNAME` matching that preview hostname exactly. Worth doing once for genuine end-to-end confidence in the real widget's visible challenge, but not required for every test run — remove the extra hostname afterwards if you'd rather keep the widget's allowlist to just `cyphral.co.uk`.
 
 ## The kill switch
 

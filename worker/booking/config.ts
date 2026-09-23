@@ -84,7 +84,6 @@ export interface BookingConfigShape {
   minNoticeHours: number;
   horizonDays: number;
   maxCallsPerDay: number;
-  holdMinutes: number;
   weekly: Record<DayName, TimeWindow[]>;
   recurringBlocks: RecurringBlock[];
   blockedDates: string[];
@@ -102,7 +101,6 @@ export const BOOKING: BookingConfigShape = {
   minNoticeHours: 24,
   horizonDays: 21, // if you change this, also update the "next three weeks" wording in src/scripts/book.ts — it isn't derived from this value
   maxCallsPerDay: 2,
-  holdMinutes: 15,
 
   // Working hours: local wall-clock windows in Europe/London.
   // A slot must start and end inside a window.
@@ -226,7 +224,6 @@ export function validateBookingConfig(config: BookingConfigShape): string[] {
     ['minNoticeHours', config.minNoticeHours],
     ['horizonDays', config.horizonDays],
     ['maxCallsPerDay', config.maxCallsPerDay],
-    ['holdMinutes', config.holdMinutes],
   ];
   for (const [name, value] of positiveNumberFields) {
     if (!(typeof value === 'number' && Number.isFinite(value) && value > 0)) {

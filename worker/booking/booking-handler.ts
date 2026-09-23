@@ -1,13 +1,24 @@
 /**
- * The orchestration logic for POST /api/booking/hold, extracted from the
+ * The orchestration logic for POST /api/booking/book, extracted from the
  * Astro route so it can be unit-tested with injected fakes — in particular
  * so the ordering guarantee ("nothing expensive runs until everything
  * cheaper has passed") is actually verifiable: honeypot, a failed
  * Turnstile check, a hit rate limit, or an exhausted mail budget must each
  * result in zero calls to Turnstile/D1-write/email as appropriate. See
- * hold-handler.test.ts.
+ * booking-handler.test.ts.
  *
- * The route (src/pages/api/booking/hold.ts) stays responsible for
+ * A booking is created directly as confirmed — there is no email-verification
+ * step, no 15-minute hold, no confirm token. The booker's confirmation email
+ * (with their cancel link) and the owner's notification (with the .ics) both
+ * go out immediately, in the same request. If either fails to send, the
+ * booking is NOT rolled back (it already happened, and the visitor already
+ * sees it confirmed on screen) — the same "email failure must not undo a
+ * real booking" principle the old /api/booking/confirm route used, just
+ * applied one step earlier now that confirmation and booking are the same
+ * step. A failed send instead sets `mail_failed`, which the cron's existing
+ * alert loop already turns into a one-time notification to Aisha.
+ *
+ * The route (src/pages/api/booking/book.ts) stays responsible for
  * everything HTTP-shaped: reading env/secrets, the global request checks
  * (content-type, origin, body size, JSON/shape parsing), and turning this
  * function's plain result into a Response. No `cloudflare:workers` or
@@ -19,15 +30,15 @@ import bankHolidayData from './bank-holidays.json';
 import { BOOKING } from './config';
 import { generateToken, hashToken, hmacHex } from './crypto';
 import {
-  countActiveHolds as dbCountActiveHolds,
-  createHold as dbCreateHold,
-  expireHeldBooking as dbExpireHeldBooking,
+  createConfirmedBooking as dbCreateConfirmedBooking,
   listLiveBookingIntervals as dbListLiveBookingIntervals,
+  markMailFailed as dbMarkMailFailed,
 } from './db';
 import {
   isWithinMailBudget as mailIsWithinBudget,
   recordMailSent as mailRecordSent,
-  sendVerificationEmail as mailSendVerification,
+  sendBookerConfirmationEmail as mailSendBookerConfirmation,
+  sendOwnerNotificationEmail as mailSendOwnerNotification,
 } from './mail';
 import { isRateLimited as rateIsLimited, RATE_LIMITS, recordRateLimitEvent as rateRecordEvent } from './rate-limit';
 import { addDays, calendarDateInZone, zonedWallTimeToUtcMs } from './timezone';
@@ -41,43 +52,43 @@ import {
   validateEmail,
   validateName,
   validateNote,
-  type HoldRequestShape,
+  type BookRequestShape,
 } from './validation';
 
-const GLOBAL_ACTIVE_HOLDS_CAP = 10;
 const MAIL_DAILY_CAP_DEFAULT = 40;
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+const OWNER_EMAIL = 'hello@cyphral.co.uk';
 
-export interface HoldHandlerDeps {
+export interface BookingHandlerDeps {
   computeAvailableSlots: typeof computeAvailableSlots;
   verifyTurnstile: typeof turnstileVerify;
   isRateLimited: typeof rateIsLimited;
   recordRateLimitEvent: typeof rateRecordEvent;
-  countActiveHolds: typeof dbCountActiveHolds;
   isWithinMailBudget: typeof mailIsWithinBudget;
   recordMailSent: typeof mailRecordSent;
   listLiveBookingIntervals: typeof dbListLiveBookingIntervals;
-  createHold: typeof dbCreateHold;
-  expireHeldBooking: typeof dbExpireHeldBooking;
-  sendVerificationEmail: typeof mailSendVerification;
+  createConfirmedBooking: typeof dbCreateConfirmedBooking;
+  markMailFailed: typeof dbMarkMailFailed;
+  sendBookerConfirmationEmail: typeof mailSendBookerConfirmation;
+  sendOwnerNotificationEmail: typeof mailSendOwnerNotification;
 }
 
-export const defaultHoldHandlerDeps: HoldHandlerDeps = {
+export const defaultBookingHandlerDeps: BookingHandlerDeps = {
   computeAvailableSlots,
   verifyTurnstile: turnstileVerify,
   isRateLimited: rateIsLimited,
   recordRateLimitEvent: rateRecordEvent,
-  countActiveHolds: dbCountActiveHolds,
   isWithinMailBudget: mailIsWithinBudget,
   recordMailSent: mailRecordSent,
   listLiveBookingIntervals: dbListLiveBookingIntervals,
-  createHold: dbCreateHold,
-  expireHeldBooking: dbExpireHeldBooking,
-  sendVerificationEmail: mailSendVerification,
+  createConfirmedBooking: dbCreateConfirmedBooking,
+  markMailFailed: dbMarkMailFailed,
+  sendBookerConfirmationEmail: mailSendBookerConfirmation,
+  sendOwnerNotificationEmail: mailSendOwnerNotification,
 };
 
-export interface HandleHoldRequestParams {
-  body: HoldRequestShape;
+export interface HandleBookingRequestParams {
+  body: BookRequestShape;
   now: Date;
   clientIp: string;
   db: D1Database;
@@ -89,7 +100,7 @@ export interface HandleHoldRequestParams {
   bankHolidayDates?: string[];
 }
 
-export interface HoldHandlerResult {
+export interface BookingHandlerResult {
   status: number;
   body: Record<string, unknown>;
   retryAfterSeconds?: number;
@@ -98,16 +109,16 @@ export interface HoldHandlerResult {
   bookingId?: string;
 }
 
-export async function handleHoldRequest(
-  params: HandleHoldRequestParams,
-  deps: HoldHandlerDeps = defaultHoldHandlerDeps,
-): Promise<HoldHandlerResult> {
+export async function handleBookingRequest(
+  params: HandleBookingRequestParams,
+  deps: BookingHandlerDeps = defaultBookingHandlerDeps,
+): Promise<BookingHandlerResult> {
   const { body } = params;
   const bankHolidayDates = params.bankHolidayDates ?? bankHolidayData.dates;
 
-  // 1. Honeypot — same success shape as a real hold, do nothing else.
+  // 1. Honeypot — same success shape as a real booking, do nothing else.
   if (body.website.trim() !== '') {
-    return { status: 202, body: { status: 'verification_sent', holdMinutes: BOOKING.holdMinutes } };
+    return { status: 201, body: { status: 'booked' } };
   }
 
   // 2. Field validation. Every field is checked (not short-circuited) so a
@@ -140,7 +151,7 @@ export async function handleHoldRequest(
     remoteIp: params.clientIp,
     secretKey: params.turnstileSecretKey,
     expectedHostname: params.turnstileExpectedHostname,
-    expectedAction: 'booking_hold',
+    expectedAction: 'booking_book',
   });
   if (!turnstileResult.ok) {
     return { status: 403, body: { error: 'challenge_failed' } };
@@ -154,19 +165,16 @@ export async function handleHoldRequest(
   const ipHash = await hmacHex(params.rateHmacSecret, params.clientIp);
   const emailHash = await hmacHex(params.rateHmacSecret, emailKey);
 
-  if (await deps.isRateLimited(params.db, ipHash, nowIso, [RATE_LIMITS.holdPerIpHour, RATE_LIMITS.holdPerIpDay])) {
+  if (await deps.isRateLimited(params.db, ipHash, nowIso, [RATE_LIMITS.bookPerIpHour, RATE_LIMITS.bookPerIpDay])) {
     return { status: 429, body: { error: 'rate_limited' }, retryAfterSeconds: 3600 };
   }
-  if (await deps.isRateLimited(params.db, emailHash, nowIso, [RATE_LIMITS.holdPerEmailDay])) {
+  if (await deps.isRateLimited(params.db, emailHash, nowIso, [RATE_LIMITS.bookPerEmailDay])) {
     return { status: 429, body: { error: 'rate_limited' }, retryAfterSeconds: 86400 };
   }
-  if ((await deps.countActiveHolds(params.db, nowIso)) >= GLOBAL_ACTIVE_HOLDS_CAP) {
-    return { status: 429, body: { error: 'rate_limited' }, retryAfterSeconds: 900 };
-  }
-  await deps.recordRateLimitEvent(params.db, RATE_LIMITS.holdPerIpHour.bucket, ipHash, nowIso);
-  await deps.recordRateLimitEvent(params.db, RATE_LIMITS.holdPerEmailDay.bucket, emailHash, nowIso);
+  await deps.recordRateLimitEvent(params.db, RATE_LIMITS.bookPerIpHour.bucket, ipHash, nowIso);
+  await deps.recordRateLimitEvent(params.db, RATE_LIMITS.bookPerEmailDay.bucket, emailHash, nowIso);
 
-  // 5. Email budget — never create a hold we can't verify.
+  // 5. Email budget — never create a booking we can't tell the booker about.
   const recipientHash = await hmacHex(params.rateHmacSecret, emailKey);
   const dailyCapGlobal = params.mailDailyCapGlobal ?? MAIL_DAILY_CAP_DEFAULT;
   const withinBudget = await deps.isWithinMailBudget({
@@ -191,7 +199,7 @@ export async function handleHoldRequest(
     return { status: 409, body: { error: 'slot_unavailable' } };
   }
 
-  // 7. Atomic conditional insert.
+  // 7. Atomic conditional insert, straight to confirmed.
   const slotStartMs = Date.parse(body.slotStart);
   const slotEndMs = slotStartMs + BOOKING.durationMinutes * 60_000;
   const bufferMs = BOOKING.bookingBufferMinutes * 60_000;
@@ -205,11 +213,10 @@ export async function handleHoldRequest(
   }
 
   const id = crypto.randomUUID();
-  const confirmToken = generateToken();
-  const confirmTokenHash = await hashToken(confirmToken);
-  const holdExpiresAtMs = now.getTime() + BOOKING.holdMinutes * 60_000;
+  const cancelToken = generateToken();
+  const cancelTokenHash = await hashToken(cancelToken);
 
-  const holdResult = await deps.createHold(params.db, {
+  const createResult = await deps.createConfirmedBooking(params.db, {
     id,
     slotStartUtc: body.slotStart,
     slotEndUtc: formatSlotIso(slotEndMs),
@@ -225,37 +232,63 @@ export async function handleHoldRequest(
     topic: body.topic,
     note: validatedNote || null,
     visitorTz,
-    confirmTokenHash,
-    holdExpiresAtUtc: formatSlotIso(holdExpiresAtMs),
+    cancelTokenHash,
     createdAtUtc: nowIso,
+    confirmedAtUtc: nowIso,
     purgeAfterUtc: formatSlotIso(slotEndMs + NINETY_DAYS_MS),
   });
 
-  if (!holdResult.ok) {
+  if (!createResult.ok) {
     return { status: 409, body: { error: 'slot_unavailable' } };
   }
 
-  // 8. Send verification email. Failure here must not leave an unverifiable hold behind.
-  const sendResult = await deps.sendVerificationEmail({
-    apiKey: params.bookingResendApiKey,
-    to: email,
-    slotStartIso: body.slotStart,
-    visitorTz,
-    confirmToken,
-    idempotencyKey: `${id}:verification`,
-  });
+  // 8. Tell the booker and Aisha immediately. A send failure here does not
+  // undo the booking — see this file's header for why.
+  const [bookerResult, ownerResult] = await Promise.all([
+    deps.sendBookerConfirmationEmail({
+      apiKey: params.bookingResendApiKey,
+      to: email,
+      name: validatedName,
+      slotStartIso: body.slotStart,
+      visitorTz,
+      topic: body.topic,
+      cancelToken,
+      idempotencyKey: `${id}:confirmed-booker`,
+    }),
+    deps.sendOwnerNotificationEmail({
+      apiKey: params.bookingResendApiKey,
+      to: OWNER_EMAIL,
+      bookingId: id,
+      name: validatedName,
+      email,
+      company: validatedCompany,
+      topic: body.topic,
+      note: validatedNote,
+      slotStartIso: body.slotStart,
+      slotEndIso: formatSlotIso(slotEndMs),
+      visitorTz,
+      idempotencyKey: `${id}:confirmed-owner`,
+    }),
+  ]);
 
-  if (!sendResult.ok) {
-    await deps.expireHeldBooking(params.db, id);
-    return { status: 503, body: { error: 'booking_unavailable' }, logEvent: 'hold_verification_mail_failed', bookingId: id };
+  if (bookerResult.ok) {
+    await deps.recordMailSent(params.db, recipientHash, nowIso);
   }
-  await deps.recordMailSent(params.db, recipientHash, nowIso);
 
-  // 9. Same response shape whether or not this email has booked before.
+  if (!bookerResult.ok || !ownerResult.ok) {
+    await deps.markMailFailed(params.db, id);
+    return {
+      status: 201,
+      body: { status: 'booked' },
+      logEvent: 'booking_created_mail_failed',
+      bookingId: id,
+    };
+  }
+
   return {
-    status: 202,
-    body: { status: 'verification_sent', holdMinutes: BOOKING.holdMinutes },
-    logEvent: 'hold_created',
+    status: 201,
+    body: { status: 'booked' },
+    logEvent: 'booking_created',
     bookingId: id,
   };
 }

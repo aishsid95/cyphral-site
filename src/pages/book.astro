@@ -48,7 +48,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '1x0000000
         </p>
       </noscript>
 
-      <div id="booking-app" class="hidden" data-slots-url="/api/booking/slots" data-hold-url="/api/booking/hold">
+      <div id="booking-app" class="hidden" data-slots-url="/api/booking/slots" data-book-url="/api/booking/book">
         <!-- Loading skeleton -->
         <div id="booking-loading" class="animate-pulse space-y-3" aria-hidden="true">
           <div class="h-6 w-48 rounded bg-neutral-200"></div>
@@ -60,7 +60,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '1x0000000
           </div>
         </div>
 
-        <!-- Status region: unavailable / no slots / rate limited / challenge failed / verification sent -->
+        <!-- Status region: unavailable / no slots / rate limited / challenge failed -->
         <p id="booking-status" class="hidden rounded-md border px-4 py-3 text-base leading-relaxed" role="status" aria-live="polite"></p>
 
         <!-- Slot picker -->
@@ -131,7 +131,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '1x0000000
             <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" />
           </div>
 
-          <div class="cf-turnstile" data-sitekey={turnstileSiteKey} data-action="booking_hold" data-callback="cyphralTurnstileSuccess" data-error-callback="cyphralTurnstileError" data-expired-callback="cyphralTurnstileExpired"></div>
+          <div class="cf-turnstile" data-sitekey={turnstileSiteKey} data-action="booking_book" data-callback="cyphralTurnstileSuccess" data-error-callback="cyphralTurnstileError" data-expired-callback="cyphralTurnstileExpired"></div>
 
           <div>
             <button type="submit" id="booking-submit" disabled
@@ -143,16 +143,19 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '1x0000000
           <p id="form-status" class="text-base leading-relaxed hidden" role="status" aria-live="polite"></p>
         </form>
 
-        <!-- Confirmation panel: replaces the picker and form entirely once a hold request succeeds.
+        <!-- Confirmation panel: replaces the picker and form entirely once a booking request succeeds.
              Focus is moved to the heading in book.ts rather than relying on aria-live alone, so
              keyboard users land here too, not just screen-reader users. -->
         <div id="booking-confirmation" class="hidden rounded-md border border-navy-300 bg-white px-6 py-10 text-center">
-          <h2 id="booking-confirmation-heading" tabindex="-1" class="font-display text-2xl md:text-3xl font-semibold text-navy-900 focus:outline-none">Check your inbox</h2>
+          <h2 id="booking-confirmation-heading" tabindex="-1" class="font-display text-2xl md:text-3xl font-semibold text-navy-900 focus:outline-none">You're booked</h2>
           <p class="mt-4 text-base text-neutral-800 leading-relaxed max-w-md mx-auto">
-            I've sent a confirmation link to your email. Click it within 15 minutes to confirm your slot: until then it's only held, not booked.
+            Your call with Cyphral is booked. A confirmation email is on its way with your call time and a link to cancel if you need to.
           </p>
           <p class="mt-2 text-sm text-neutral-600 max-w-md mx-auto">
-            Check your inbox and junk folder. If it doesn't turn up, email <a href="mailto:hello@cyphral.co.uk" class="text-maroon-700 hover:text-maroon-500 underline underline-offset-4">hello@cyphral.co.uk</a> and I'll sort it.
+            I'll send a calendar invite with the video call link before we speak.
+          </p>
+          <p class="mt-2 text-sm text-neutral-600 max-w-md mx-auto">
+            Didn't get the confirmation email? Check your junk folder, or email <a href="mailto:hello@cyphral.co.uk" class="text-maroon-700 hover:text-maroon-500 underline underline-offset-4">hello@cyphral.co.uk</a>.
           </p>
           <div class="mt-8 flex flex-col sm:flex-row gap-4 sm:gap-8 sm:items-center sm:justify-center">
             <a href="/" class="inline-flex items-center text-base font-medium text-navy-900 hover:text-maroon-700 transition-colors">

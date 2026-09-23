@@ -14,7 +14,7 @@ interface SlotsResponse {
 const app = document.getElementById('booking-app');
 if (app) {
   const slotsUrl = app.dataset.slotsUrl!;
-  const holdUrl = app.dataset.holdUrl!;
+  const bookUrl = app.dataset.bookUrl!;
 
   const loadingEl = document.getElementById('booking-loading')!;
   const statusEl = document.getElementById('booking-status')!;
@@ -282,13 +282,13 @@ if (app) {
     let submitted = false;
 
     try {
-      const res = await fetch(holdUrl, {
+      const res = await fetch(bookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
-      if (res.status === 202) {
+      if (res.status === 201) {
         formEl.reset();
         selectedSlot = null;
         pickerEl.classList.add('hidden');

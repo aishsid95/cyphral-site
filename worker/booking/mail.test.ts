@@ -3,7 +3,7 @@ import {
   sendBookerConfirmationEmail,
   sendCancellationEmails,
   sendOwnerNotificationEmail,
-  sendVerificationEmail,
+  sendReminderEmail,
   sendViaResend,
 } from './mail';
 
@@ -107,31 +107,28 @@ describe('sendViaResend', () => {
   });
 });
 
-describe('sendVerificationEmail', () => {
-  it('never includes the name or any other user-supplied text', async () => {
+describe('sendReminderEmail', () => {
+  it('sends the reminder with the fresh cancel token encoded in the link', async () => {
     const calls: string[] = [];
     const fetchImpl = (async (_url: string, init: RequestInit) => {
       calls.push(init.body as string);
       return new Response('{}', { status: 200 });
     }) as typeof fetch;
 
-    await sendVerificationEmail({
+    await sendReminderEmail({
       apiKey: 'key',
-      to: 'attacker-controlled@example.com',
+      to: 'visitor@example.com',
+      name: 'Visitor',
       slotStartIso: '2026-07-20T09:00:00Z',
       visitorTz: 'Europe/Paris',
-      confirmToken: 'a-token',
-      idempotencyKey: 'booking-1:verification',
+      cancelToken: 'a-fresh-reminder-token',
+      idempotencyKey: 'booking-1:reminder',
       fetchImpl,
     });
 
     const body = JSON.parse(calls[0]);
-    expect(body.subject).toBe('Confirm your call with Cyphral');
-    // Only the recipient address carries anything visitor-supplied — never in the body.
-    expect(body.text).not.toContain('attacker-controlled');
-    expect(body.html).not.toContain('attacker-controlled');
-    expect(body.text).toContain('15 minutes');
-    expect(body.html).toContain(encodeURIComponent('a-token'));
+    expect(body.subject).toBe('Reminder: your call with Cyphral');
+    expect(body.html).toContain(encodeURIComponent('a-fresh-reminder-token'));
   });
 });
 

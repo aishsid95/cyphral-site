@@ -139,7 +139,7 @@ export function isValidTurnstileToken(raw: string): boolean {
 // uniformly before the field-by-field checks above ever run.
 // ---------------------------------------------------------------------------
 
-export const HoldRequestShape = v.strictObject({
+export const BookRequestShape = v.strictObject({
   slotStart: v.string(),
   name: v.string(),
   email: v.string(),
@@ -150,7 +150,7 @@ export const HoldRequestShape = v.strictObject({
   website: v.string(),
   turnstileToken: v.string(),
 });
-export type HoldRequestShape = v.InferOutput<typeof HoldRequestShape>;
+export type BookRequestShape = v.InferOutput<typeof BookRequestShape>;
 
 export const TokenRequestShape = v.strictObject({
   token: v.string(),
@@ -159,8 +159,8 @@ export type TokenRequestShape = v.InferOutput<typeof TokenRequestShape>;
 
 export type ParseShapeResult<T> = { ok: true; data: T } | { ok: false };
 
-export function parseHoldRequestShape(data: unknown): ParseShapeResult<HoldRequestShape> {
-  const result = v.safeParse(HoldRequestShape, data);
+export function parseBookRequestShape(data: unknown): ParseShapeResult<BookRequestShape> {
+  const result = v.safeParse(BookRequestShape, data);
   return result.success ? { ok: true, data: result.output } : { ok: false };
 }
 

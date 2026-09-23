@@ -1,43 +1,42 @@
 /**
- * The 30-minute maintenance sweep (Phase 5's cron trigger, wired in
- * src/worker.ts's `scheduled()` handler). Three independent jobs, each
- * a single blanket SQL statement (so each is naturally idempotent — running
- * it again with a later `nowUtc` just matches fewer or no rows) plus a
- * per-row alert loop that must not let one bad row abort the others.
+ * The 30-minute maintenance sweep (wired in src/worker.ts's `scheduled()`
+ * handler). Independent jobs, each tolerant of the others failing: a purge
+ * step is a single blanket SQL statement (naturally idempotent — running it
+ * again with a later `nowUtc` just matches fewer or no rows), and the two
+ * per-row loops (mail-failed alerts, day-before reminders) must not let one
+ * bad row abort the rest of the sweep, or each other.
  */
-import { sendMailFailedAlert } from './mail';
+import { generateToken, hashToken, hmacHex } from './crypto';
+import { listBookingsNeedingReminder, markMailFailed, markReminderSent, type ReminderCandidate } from './db';
+import { isWithinMailBudget, recordMailSent, sendMailFailedAlert, sendReminderEmail } from './mail';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+const MAIL_DAILY_CAP_DEFAULT = 40;
 
 export interface RunBookingMaintenanceDeps {
   sendMailFailedAlert: typeof sendMailFailedAlert;
+  sendReminderEmail: typeof sendReminderEmail;
 }
 
-export const defaultCronDeps: RunBookingMaintenanceDeps = { sendMailFailedAlert };
+export const defaultCronDeps: RunBookingMaintenanceDeps = { sendMailFailedAlert, sendReminderEmail };
 
 export interface RunBookingMaintenanceParams {
   db: D1Database;
   nowUtc: string;
-  /** Undefined when the BOOKING_RESEND_API_KEY secret isn't set — the sweep still runs, only the alert step is skipped. */
+  /** Undefined when the BOOKING_RESEND_API_KEY secret isn't set — the sweep still runs, only the alert and reminder steps are skipped. */
   resendApiKey: string | undefined;
   ownerEmail: string;
+  rateHmacSecret: string;
+  mailDailyCapGlobal?: number;
 }
 
 export interface CronRunResult {
-  expiredHolds: number;
   purgedBookings: number;
   purgedRateEvents: number;
   alertsSent: number;
   alertsFailed: number;
-}
-
-/** Expires held bookings whose hold_expires_at has passed. Returns the number of rows changed. */
-export async function expireStaleHolds(db: D1Database, nowUtc: string): Promise<number> {
-  const result = await db
-    .prepare(`UPDATE bookings SET status = 'expired' WHERE status = 'held' AND hold_expires_at < ?`)
-    .bind(nowUtc)
-    .run();
-  return result.meta.changes ?? 0;
+  remindersSent: number;
+  remindersFailed: number;
 }
 
 /** Deletes bookings past their purge_after date. Returns the number of rows deleted. */
@@ -63,9 +62,7 @@ interface MailFailedRow {
  * A failure sending or updating one row is caught and counted, never
  * thrown — one bad row must not stop the rest of the sweep. If the Resend
  * key isn't configured, skips straight to returning zero counts — no D1
- * read, no doomed network call — leaving the rest of the sweep (expiry,
- * both purges) completely unaffected, since those already run before this
- * is ever called.
+ * read, no doomed network call.
  */
 async function alertOnFailedMail(
   db: D1Database,
@@ -113,11 +110,83 @@ async function alertOnFailedMail(
   return { sent, failed };
 }
 
+/**
+ * Sends the day-before reminder to every confirmed booking that's due one:
+ * see db.ts's listBookingsNeedingReminder for the exact window. Each row is
+ * gated behind the same mail budget the initial confirmation uses, and
+ * `markReminderSent`'s own WHERE clause is the sole idempotency guard — it
+ * only succeeds for the first of any two overlapping cron runs racing on the
+ * same row, so only that first run ever sends the email. A row whose budget
+ * check fails is left untouched (not marked sent), so it's retried on a
+ * later run once the budget has room again; a row whose send itself fails
+ * (already marked sent by then) is not retried — it's flagged mail_failed
+ * instead, for alertOnFailedMail to pick up. If the Resend key isn't
+ * configured, skips straight to returning zero counts.
+ */
+async function sendReminders(
+  db: D1Database,
+  nowUtc: string,
+  resendApiKey: string | undefined,
+  rateHmacSecret: string,
+  mailDailyCapGlobal: number | undefined,
+  deps: RunBookingMaintenanceDeps,
+): Promise<{ sent: number; failed: number }> {
+  let sent = 0;
+  let failed = 0;
+
+  if (!resendApiKey) {
+    return { sent, failed };
+  }
+
+  let candidates: ReminderCandidate[] = [];
+  try {
+    candidates = await listBookingsNeedingReminder(db, nowUtc);
+  } catch {
+    return { sent, failed };
+  }
+
+  const dailyCapGlobal = mailDailyCapGlobal ?? MAIL_DAILY_CAP_DEFAULT;
+
+  for (const booking of candidates) {
+    try {
+      const recipientHash = await hmacHex(rateHmacSecret, booking.email);
+      const withinBudget = await isWithinMailBudget({ db, recipientSubjectHash: recipientHash, nowUtc, dailyCapGlobal });
+      if (!withinBudget) continue; // left un-marked, so a later run (once budget frees up) retries it
+
+      const cancelToken = generateToken();
+      const cancelTokenHash = await hashToken(cancelToken);
+      const marked = await markReminderSent(db, { id: booking.id, cancelTokenHash, sentAtUtc: nowUtc });
+      if (!marked.ok) continue; // already sent by another run — not a failure, just nothing to do
+
+      const result = await deps.sendReminderEmail({
+        apiKey: resendApiKey,
+        to: booking.email,
+        name: booking.name,
+        slotStartIso: booking.slotStartUtc,
+        visitorTz: booking.visitorTz,
+        cancelToken,
+        idempotencyKey: `${booking.id}:reminder`,
+      });
+
+      if (result.ok) {
+        await recordMailSent(db, recipientHash, nowUtc);
+        sent += 1;
+      } else {
+        await markMailFailed(db, booking.id);
+        failed += 1;
+      }
+    } catch {
+      failed += 1;
+    }
+  }
+
+  return { sent, failed };
+}
+
 export async function runBookingMaintenance(
   params: RunBookingMaintenanceParams,
   deps: RunBookingMaintenanceDeps = defaultCronDeps,
 ): Promise<CronRunResult> {
-  const expiredHolds = await expireStaleHolds(params.db, params.nowUtc);
   const purgedBookings = await purgeExpiredBookings(params.db, params.nowUtc);
   const purgedRateEvents = await purgeOldRateEvents(params.db, params.nowUtc);
   const { sent: alertsSent, failed: alertsFailed } = await alertOnFailedMail(
@@ -126,6 +195,14 @@ export async function runBookingMaintenance(
     params.ownerEmail,
     deps,
   );
+  const { sent: remindersSent, failed: remindersFailed } = await sendReminders(
+    params.db,
+    params.nowUtc,
+    params.resendApiKey,
+    params.rateHmacSecret,
+    params.mailDailyCapGlobal,
+    deps,
+  );
 
-  return { expiredHolds, purgedBookings, purgedRateEvents, alertsSent, alertsFailed };
+  return { purgedBookings, purgedRateEvents, alertsSent, alertsFailed, remindersSent, remindersFailed };
 }

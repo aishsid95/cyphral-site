@@ -11,7 +11,7 @@ import { buildCancelledBookerEmail, buildCancelledOwnerEmail } from './emails/ca
 import { buildConfirmedEmail } from './emails/confirmed';
 import { buildMailFailedAlertEmail } from './emails/alert';
 import { buildOwnerNotificationEmail } from './emails/owner-notification';
-import { buildVerificationEmail } from './emails/verification';
+import { buildReminderEmail } from './emails/reminder';
 import { stripCrlf, topicLabel } from './emails/shared';
 
 const FROM_ADDRESS = '"Aisha, Cyphral" <bookings@send.cyphral.co.uk>';
@@ -120,32 +120,6 @@ export async function sendViaResend(input: SendViaResendInput): Promise<SendResu
 // (+ attachment, for the owner notification) into a Resend send.
 // ---------------------------------------------------------------------------
 
-export interface VerificationEmailParams {
-  apiKey: string;
-  to: string;
-  slotStartIso: string;
-  visitorTz: string;
-  confirmToken: string;
-  idempotencyKey: string;
-  fetchImpl?: typeof fetch;
-}
-
-export async function sendVerificationEmail(params: VerificationEmailParams): Promise<SendResult> {
-  const content = buildVerificationEmail({
-    slotStartIso: params.slotStartIso,
-    visitorTz: params.visitorTz,
-    confirmLink: `https://cyphral.co.uk/book/confirm#t=${encodeURIComponent(params.confirmToken)}`,
-  });
-  return sendViaResend({
-    apiKey: params.apiKey,
-    to: params.to,
-    replyTo: OWNER_REPLY_TO,
-    ...content,
-    idempotencyKey: params.idempotencyKey,
-    fetchImpl: params.fetchImpl,
-  });
-}
-
 export interface BookerConfirmationParams {
   apiKey: string;
   to: string;
@@ -224,6 +198,35 @@ export async function sendOwnerNotificationEmail(params: OwnerNotificationParams
     ...content,
     idempotencyKey: params.idempotencyKey,
     attachments: [{ filename: 'booking.ics', content: icsToBase64(ics), content_type: 'text/calendar; method=PUBLISH' }],
+    fetchImpl: params.fetchImpl,
+  });
+}
+
+export interface ReminderEmailParams {
+  apiKey: string;
+  to: string;
+  name: string;
+  slotStartIso: string;
+  visitorTz: string;
+  /** A freshly minted token for this reminder — see db.ts's markReminderSent for why. */
+  cancelToken: string;
+  idempotencyKey: string;
+  fetchImpl?: typeof fetch;
+}
+
+export async function sendReminderEmail(params: ReminderEmailParams): Promise<SendResult> {
+  const content = buildReminderEmail({
+    name: params.name,
+    slotStartIso: params.slotStartIso,
+    visitorTz: params.visitorTz,
+    cancelLink: `https://cyphral.co.uk/book/cancel#t=${encodeURIComponent(params.cancelToken)}`,
+  });
+  return sendViaResend({
+    apiKey: params.apiKey,
+    to: params.to,
+    replyTo: OWNER_REPLY_TO,
+    ...content,
+    idempotencyKey: params.idempotencyKey,
     fetchImpl: params.fetchImpl,
   });
 }

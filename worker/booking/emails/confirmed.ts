@@ -1,7 +1,9 @@
 /**
- * Booking-confirmed email (to the booker). The name may appear here —
- * unlike the verification email, the address has been verified by this
- * point, so there's no relay risk in greeting the person by name.
+ * Booking-confirmed email (to the booker). The name may appear here since
+ * this only ever goes to the address the booker themselves typed in —
+ * there's no third-party relay risk in greeting them by name. The address
+ * itself is DNS-checked (see validation.ts's validateEmail), not ownership-
+ * verified — there's no click-to-confirm step any more.
  */
 import { escapeHtml, formatSlotTime, friendlyTzName, topicLabel, wrapHtml } from './shared';
 

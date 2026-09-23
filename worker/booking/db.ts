@@ -5,17 +5,21 @@
  *
  * This module owns storage only. Business logic — recomputing availability,
  * deciding what counts as a rate-limit violation, orchestrating email sends —
- * belongs to the API route handlers (Phase 3), which call these primitives.
+ * belongs to the API route handlers, which call these primitives.
+ *
+ * A booking is created directly as `confirmed` — there is no intermediate
+ * `held`/unverified state (removed along with the email-verification step;
+ * see worker/booking/booking-handler.ts). The `bookings.status` CHECK
+ * constraint still technically permits the legacy 'held'/'expired' values —
+ * left in place deliberately rather than migrated away, since no code here
+ * ever writes them again and a constraint/index migration would add real
+ * risk for zero behavioural benefit — but nothing in this file reads or
+ * writes them either.
  */
 
 export type BookingStatus = 'held' | 'confirmed' | 'cancelled' | 'expired';
 
-// "('held','confirmed')" is written out literally everywhere below, rather
-// than held in a constant and interpolated in — every .prepare() call in
-// this file is a plain string with no `${...}` in it, by rule (see
-// sql-safety.test.ts). All *data* still goes through bound parameters.
-
-export interface CreateHoldInput {
+export interface CreateBookingInput {
   id: string;
   slotStartUtc: string; // ISO, e.g. "2026-07-20T09:00:00Z"
   slotEndUtc: string; // ISO
@@ -35,58 +39,50 @@ export interface CreateHoldInput {
   topic: string;
   note: string | null;
   visitorTz: string;
-  confirmTokenHash: string;
-  holdExpiresAtUtc: string;
+  cancelTokenHash: string;
   createdAtUtc: string;
+  confirmedAtUtc: string;
   purgeAfterUtc: string;
 }
 
-export type CreateHoldResult = { ok: true } | { ok: false; reason: 'slot_unavailable' };
+export type CreateBookingResult = { ok: true } | { ok: false; reason: 'slot_unavailable' };
 
 function isUniqueConstraintError(err: unknown): boolean {
   return err instanceof Error && /UNIQUE constraint failed/i.test(err.message);
 }
 
 /**
- * Atomically creates a `held` booking, or fails with `slot_unavailable`.
- *
- * Runs as a two-statement `db.batch` (a single D1 transaction): first any
- * stale `held` rows past their `hold_expires_at` are flipped to `expired`
- * (freeing their slot and their place in the daily cap for the second
- * statement, which runs against the post-update state); then the INSERT's
- * own `SELECT ... WHERE` re-checks slot overlap (with the booking buffer),
- * the daily cap, and one-live-booking-per-email, all against the database as
- * it actually stands right now — not against whatever the caller last read.
- * `bookings_one_live_per_slot` is the final backstop against a genuine race
- * between two concurrent batches; its constraint violation is caught and
- * mapped to the same `slot_unavailable` result.
+ * Atomically creates a `confirmed` booking, or fails with `slot_unavailable`.
+ * A single INSERT ... SELECT ... WHERE: the SELECT re-checks slot overlap
+ * (with the booking buffer), the daily cap, and one-live-booking-per-email,
+ * all against the database as it actually stands right now — not against
+ * whatever the caller last read. `bookings_one_live_per_slot` is the final
+ * backstop against a genuine race between two concurrent inserts; its
+ * constraint violation is caught and mapped to the same `slot_unavailable`
+ * result.
  */
-export async function createHold(db: D1Database, input: CreateHoldInput): Promise<CreateHoldResult> {
-  const expireStaleHolds = db
-    .prepare(`UPDATE bookings SET status = 'expired' WHERE status = 'held' AND hold_expires_at < ?`)
-    .bind(input.createdAtUtc);
-
+export async function createConfirmedBooking(db: D1Database, input: CreateBookingInput): Promise<CreateBookingResult> {
   const insert = db
     .prepare(
       `INSERT INTO bookings (
          id, slot_start_utc, slot_end_utc, status, name, email, email_key, company,
-         topic, note, visitor_tz, confirm_token_hash, hold_expires_at, created_at, purge_after
+         topic, note, visitor_tz, cancel_token_hash, created_at, confirmed_at, purge_after
        )
-       SELECT ?, ?, ?, 'held', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+       SELECT ?, ?, ?, 'confirmed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
        WHERE NOT EXISTS (
          SELECT 1 FROM bookings
-         WHERE status IN ('held','confirmed')
+         WHERE status = 'confirmed'
            AND slot_start_utc < ?
            AND slot_end_utc > ?
        )
        AND (
          SELECT COUNT(*) FROM bookings
-         WHERE status IN ('held','confirmed')
+         WHERE status = 'confirmed'
            AND slot_start_utc >= ?
            AND slot_start_utc < ?
        ) < ?
        AND NOT EXISTS (
-         SELECT 1 FROM bookings WHERE status IN ('held','confirmed') AND email_key = ?
+         SELECT 1 FROM bookings WHERE status = 'confirmed' AND email_key = ?
        )`,
     )
     .bind(
@@ -100,9 +96,9 @@ export async function createHold(db: D1Database, input: CreateHoldInput): Promis
       input.topic,
       input.note,
       input.visitorTz,
-      input.confirmTokenHash,
-      input.holdExpiresAtUtc,
+      input.cancelTokenHash,
       input.createdAtUtc,
+      input.confirmedAtUtc,
       input.purgeAfterUtc,
       // overlap check: existing.start < bufferedEnd AND existing.end > bufferedStart
       input.bufferedRangeEndUtc,
@@ -116,8 +112,8 @@ export async function createHold(db: D1Database, input: CreateHoldInput): Promis
     );
 
   try {
-    const [, insertResult] = await db.batch([expireStaleHolds, insert]);
-    return (insertResult.meta.changes ?? 0) > 0 ? { ok: true } : { ok: false, reason: 'slot_unavailable' };
+    const result = await insert.run();
+    return (result.meta.changes ?? 0) > 0 ? { ok: true } : { ok: false, reason: 'slot_unavailable' };
   } catch (err) {
     if (isUniqueConstraintError(err)) return { ok: false, reason: 'slot_unavailable' };
     throw err;
@@ -165,21 +161,6 @@ function rowToBookingDetails(row: BookingDetailsRow): BookingDetails {
   };
 }
 
-/** Reads a `held` booking by its confirm-token hash. Does not check expiry — see confirmHeldBooking. */
-export async function findHeldBookingByConfirmTokenHash(
-  db: D1Database,
-  confirmTokenHash: string,
-): Promise<BookingDetails | null> {
-  const row = await db
-    .prepare(
-      `SELECT id, slot_start_utc, slot_end_utc, name, email, email_key, company, topic, note, visitor_tz
-       FROM bookings WHERE status = 'held' AND confirm_token_hash = ?`,
-    )
-    .bind(confirmTokenHash)
-    .first<BookingDetailsRow>();
-  return row ? rowToBookingDetails(row) : null;
-}
-
 /** Reads a `confirmed` booking by its cancel-token hash. Does not check the slot's start time — see cancelConfirmedBooking. */
 export async function findConfirmedBookingByCancelTokenHash(
   db: D1Database,
@@ -193,35 +174,6 @@ export async function findConfirmedBookingByCancelTokenHash(
     .bind(cancelTokenHash)
     .first<BookingDetailsRow>();
   return row ? rowToBookingDetails(row) : null;
-}
-
-/** Marks a specific held booking expired (used when a re-checked availability no longer allows it). Idempotent. */
-export async function expireHeldBooking(db: D1Database, id: string): Promise<void> {
-  await db.prepare(`UPDATE bookings SET status = 'expired' WHERE id = ? AND status = 'held'`).bind(id).run();
-}
-
-export type ConfirmResult = { ok: true } | { ok: false; reason: 'link_expired' };
-
-/**
- * Atomically confirms a held, non-expired booking by its confirm-token hash,
- * clearing the (now single-use) confirm token and issuing a cancel token.
- * Zero rows changed — wrong/reused token, or hold_expires_at has passed —
- * is reported the same way, covering double-clicks and expiry races alike.
- */
-export async function confirmHeldBooking(
-  db: D1Database,
-  params: { confirmTokenHash: string; nowUtc: string; cancelTokenHash: string; confirmedAtUtc: string },
-): Promise<ConfirmResult> {
-  const result = await db
-    .prepare(
-      `UPDATE bookings
-       SET status = 'confirmed', confirmed_at = ?, confirm_token_hash = NULL, cancel_token_hash = ?
-       WHERE status = 'held' AND confirm_token_hash = ? AND hold_expires_at >= ?`,
-    )
-    .bind(params.confirmedAtUtc, params.cancelTokenHash, params.confirmTokenHash, params.nowUtc)
-    .run();
-
-  return (result.meta.changes ?? 0) > 0 ? { ok: true } : { ok: false, reason: 'link_expired' };
 }
 
 export type CancelResult = { ok: true } | { ok: false; reason: 'link_expired' };
@@ -248,7 +200,7 @@ export async function cancelConfirmedBooking(
   return (result.meta.changes ?? 0) > 0 ? { ok: true } : { ok: false, reason: 'link_expired' };
 }
 
-/** Marks a booking's post-confirmation email as failed, for the cron job to alert on. Does not roll back the booking. */
+/** Marks a booking's post-confirmation (or reminder) email as failed, for the cron job to alert on. Does not roll back the booking. */
 export async function markMailFailed(db: D1Database, id: string): Promise<void> {
   await db.prepare(`UPDATE bookings SET mail_failed = 1 WHERE id = ?`).bind(id).run();
 }
@@ -258,21 +210,72 @@ export interface LiveBookingInterval {
   endUtc: string;
 }
 
-/** Every currently held or confirmed booking, for feeding into computeAvailableSlots. */
+/** Every currently confirmed booking, for feeding into computeAvailableSlots. */
 export async function listLiveBookingIntervals(db: D1Database): Promise<LiveBookingInterval[]> {
   const { results } = await db
-    .prepare(`SELECT slot_start_utc, slot_end_utc FROM bookings WHERE status IN ('held','confirmed')`)
+    .prepare(`SELECT slot_start_utc, slot_end_utc FROM bookings WHERE status = 'confirmed'`)
     .all<{ slot_start_utc: string; slot_end_utc: string }>();
   return results.map((r) => ({ startUtc: r.slot_start_utc, endUtc: r.slot_end_utc }));
 }
 
-/** Number of currently active (non-expired) holds, for the global-active-holds rate limit. */
-export async function countActiveHolds(db: D1Database, nowUtc: string): Promise<number> {
-  const row = await db
-    .prepare(`SELECT COUNT(*) AS n FROM bookings WHERE status = 'held' AND hold_expires_at >= ?`)
-    .bind(nowUtc)
-    .first<{ n: number }>();
-  return row?.n ?? 0;
+export interface ReminderCandidate {
+  id: string;
+  name: string;
+  email: string;
+  slotStartUtc: string;
+  visitorTz: string;
+}
+
+/**
+ * Confirmed bookings that need their day-before reminder: not yet reminded,
+ * starting more than 1 hour and at most 24 hours from now. The 1-hour floor
+ * matches the spec's "starts more than 1 hour from now" — it exists so the
+ * reminder is never the very last thing sent before a call that's about to
+ * start, e.g. right after a 30-minute cron tick.
+ */
+export async function listBookingsNeedingReminder(db: D1Database, nowUtc: string): Promise<ReminderCandidate[]> {
+  const earliestUtc = new Date(Date.parse(nowUtc) + 60 * 60 * 1000).toISOString();
+  const latestUtc = new Date(Date.parse(nowUtc) + 24 * 60 * 60 * 1000).toISOString();
+  const { results } = await db
+    .prepare(
+      `SELECT id, name, email, slot_start_utc, visitor_tz FROM bookings
+       WHERE status = 'confirmed' AND reminder_sent_at IS NULL
+         AND slot_start_utc > ? AND slot_start_utc <= ?`,
+    )
+    .bind(earliestUtc, latestUtc)
+    .all<{ id: string; name: string; email: string; slot_start_utc: string; visitor_tz: string }>();
+  return results.map((r) => ({
+    id: r.id,
+    name: r.name,
+    email: r.email,
+    slotStartUtc: r.slot_start_utc,
+    visitorTz: r.visitor_tz,
+  }));
+}
+
+export type MarkReminderSentResult = { ok: true } | { ok: false };
+
+/**
+ * Atomically marks a booking's reminder sent, rotating its cancel token to a
+ * fresh one at the same time — the reminder's own cancel link needs a raw
+ * token to show, and only a hash of the original is ever stored, so a new
+ * one is minted here rather than adding a second token column. The WHERE
+ * clause (status = 'confirmed' AND reminder_sent_at IS NULL) is what makes
+ * this safe to call from two overlapping cron runs: only the first ever
+ * changes a row, so only the first ever sends an email.
+ */
+export async function markReminderSent(
+  db: D1Database,
+  params: { id: string; cancelTokenHash: string; sentAtUtc: string },
+): Promise<MarkReminderSentResult> {
+  const result = await db
+    .prepare(
+      `UPDATE bookings SET reminder_sent_at = ?, cancel_token_hash = ?
+       WHERE id = ? AND status = 'confirmed' AND reminder_sent_at IS NULL`,
+    )
+    .bind(params.sentAtUtc, params.cancelTokenHash, params.id)
+    .run();
+  return (result.meta.changes ?? 0) > 0 ? { ok: true } : { ok: false };
 }
 
 // ---------------------------------------------------------------------------

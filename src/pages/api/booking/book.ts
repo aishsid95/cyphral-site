@@ -1,15 +1,18 @@
 /**
- * POST /api/booking/hold — HTTP shell only. The actual step-by-step
+ * POST /api/booking/book — HTTP shell only. The actual step-by-step
  * orchestration (honeypot, validation, Turnstile, rate limits, mail
- * budget, availability recheck, atomic insert, verification email) lives
- * in worker/booking/hold-handler.ts, which takes its D1/mail/Turnstile
- * calls as injected dependencies specifically so their ordering — nothing
- * expensive runs until everything cheaper has passed — is unit-testable.
- * See hold-handler.test.ts.
+ * budget, availability recheck, atomic insert, confirmation + owner
+ * emails) lives in worker/booking/booking-handler.ts, which takes its
+ * D1/mail/Turnstile calls as injected dependencies specifically so their
+ * ordering — nothing expensive runs until everything cheaper has passed —
+ * is unit-testable. See booking-handler.test.ts.
+ *
+ * Named /book, not /hold: a request here creates a confirmed booking
+ * directly. There is no held/unverified intermediate state any more.
  */
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
-import { handleHoldRequest } from '../../../../worker/booking/hold-handler';
+import { handleBookingRequest } from '../../../../worker/booking/booking-handler';
 import {
   checkJsonContentType,
   checkOrigin,
@@ -23,7 +26,7 @@ import {
   methodNotAllowed,
   readJsonBody,
 } from '../../../../worker/booking/http';
-import { parseHoldRequestShape } from '../../../../worker/booking/validation';
+import { parseBookRequestShape } from '../../../../worker/booking/validation';
 
 export const prerender = false;
 
@@ -42,10 +45,10 @@ export const POST: APIRoute = async ({ request }) => {
   }
   if (hasDangerousKeys(bodyResult.data)) return errorResponse('invalid_input', 400);
 
-  const shapeResult = parseHoldRequestShape(bodyResult.data);
+  const shapeResult = parseBookRequestShape(bodyResult.data);
   if (!shapeResult.ok) return errorResponse('invalid_input', 400);
 
-  const result = await handleHoldRequest({
+  const result = await handleBookingRequest({
     body: shapeResult.data,
     now: new Date(),
     clientIp: getClientIp(request),

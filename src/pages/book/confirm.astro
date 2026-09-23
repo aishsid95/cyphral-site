@@ -2,9 +2,18 @@
 import Layout from '../../layouts/Layout.astro';
 ---
 
+<!--
+  This page's confirm flow is retired: bookings are now confirmed the moment
+  they're made, so a link to this page (sent by the old verification email)
+  has nothing left to do. Kept as a static, friendly dead end rather than
+  deleted outright — for the small window of already-sent verification
+  emails around the deploy that retired this flow, and for anything cached
+  or bookmarked. No API calls, no script, nothing time-sensitive to get
+  wrong.
+-->
 <Layout
   title="Confirm your call"
-  description="Confirm your booked call with Cyphral using the link from your confirmation email."
+  description="This link is no longer needed. Bookings with Cyphral are now confirmed immediately."
   metaReferrerPolicy="no-referrer"
   noindex
 >
@@ -12,25 +21,17 @@ import Layout from '../../layouts/Layout.astro';
     <div class="max-w-2xl mx-auto text-center">
       <p class="text-xs font-medium tracking-[0.18em] uppercase text-maroon-700">Book a call</p>
       <h1 class="mt-6 font-display text-3xl md:text-5xl font-semibold text-navy-900 leading-[1.1] tracking-tight">
-        Confirm your call
+        This link is no longer needed
       </h1>
-
-      <div id="confirm-action" class="mt-8">
-        <p class="text-base text-neutral-800 leading-relaxed mb-6">
-          Click below to confirm. This does not happen automatically when the page loads.
-        </p>
-        <button
-          type="button"
-          id="confirm-button"
-          class="inline-flex items-center justify-center rounded-md bg-navy-900 hover:bg-navy-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 text-base font-medium transition-colors"
-        >
-          Confirm my call
-        </button>
-      </div>
-
-      <p id="confirm-status" class="mt-8 text-base text-neutral-800 leading-relaxed" role="status" aria-live="polite"></p>
+      <p class="mt-6 text-base text-neutral-800 leading-relaxed">
+        Bookings with Cyphral are confirmed the moment they're made, so there's nothing left to do here. If you
+        booked a call, check your inbox for a confirmation email with your call time and a cancel link.
+      </p>
+      <p class="mt-8">
+        <a href="/book" class="inline-flex items-center justify-center rounded-md bg-navy-900 hover:bg-navy-700 text-white px-6 py-3 text-base font-medium transition-colors">
+          Book a call
+        </a>
+      </p>
     </div>
   </section>
-
-  <script src="../../scripts/book-confirm.ts"></script>
 </Layout>

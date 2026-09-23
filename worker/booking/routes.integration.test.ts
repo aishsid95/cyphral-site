@@ -16,8 +16,8 @@
  * Turnstile has genuinely passed — proving the real build's routing wires
  * all the way through Turnstile's real network round trip into business
  * logic without crashing, which is what this file's routing/wiring scope
- * (see above) actually needs. A full mocked happy-path hold -> confirm ->
- * cancel round trip is not attempted at this layer; that would need
+ * (see above) actually needs. A full mocked happy-path book -> cancel
+ * round trip is not attempted at this layer; that would need
  * outbound-fetch mocking wiring this package version doesn't expose in an
  * obvious way, and the round trip's pieces are each already covered: db.ts
  * (Phase 2 + concurrency tests), mail.ts, turnstile.ts, and validation.ts
@@ -117,7 +117,7 @@ describe('GET /api/booking/slots reaches the real handler with a real D1 binding
   });
 });
 
-describe('POST /api/booking/hold — global request handling in the real build', () => {
+describe('POST /api/booking/book — global request handling in the real build', () => {
   const validBody = {
     slotStart: '2099-01-05T10:00:00Z',
     name: 'Test',
@@ -131,7 +131,7 @@ describe('POST /api/booking/hold — global request handling in the real build',
   };
 
   it('rejects a missing Origin header', async () => {
-    const res = await SELF.fetch('https://cyphral.co.uk/api/booking/hold', {
+    const res = await SELF.fetch('https://cyphral.co.uk/api/booking/book', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(validBody),
@@ -141,7 +141,7 @@ describe('POST /api/booking/hold — global request handling in the real build',
   });
 
   it('rejects a wrong Origin header', async () => {
-    const res = await SELF.fetch('https://cyphral.co.uk/api/booking/hold', {
+    const res = await SELF.fetch('https://cyphral.co.uk/api/booking/book', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Origin: 'https://evil.example' },
       body: JSON.stringify(validBody),
@@ -150,7 +150,7 @@ describe('POST /api/booking/hold — global request handling in the real build',
   });
 
   it('rejects a non-JSON content type', async () => {
-    const res = await SELF.fetch('https://cyphral.co.uk/api/booking/hold', {
+    const res = await SELF.fetch('https://cyphral.co.uk/api/booking/book', {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain', Origin: ORIGIN },
       body: JSON.stringify(validBody),
@@ -159,7 +159,7 @@ describe('POST /api/booking/hold — global request handling in the real build',
   });
 
   it('rejects an oversized body', async () => {
-    const res = await SELF.fetch('https://cyphral.co.uk/api/booking/hold', {
+    const res = await SELF.fetch('https://cyphral.co.uk/api/booking/book', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Origin: ORIGIN },
       body: JSON.stringify({ ...validBody, note: 'x'.repeat(9000) }),
@@ -168,7 +168,7 @@ describe('POST /api/booking/hold — global request handling in the real build',
   });
 
   it('rejects malformed JSON', async () => {
-    const res = await SELF.fetch('https://cyphral.co.uk/api/booking/hold', {
+    const res = await SELF.fetch('https://cyphral.co.uk/api/booking/book', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Origin: ORIGIN },
       body: '{not valid json',
@@ -177,7 +177,7 @@ describe('POST /api/booking/hold — global request handling in the real build',
   });
 
   it('rejects a __proto__ key', async () => {
-    const res = await SELF.fetch('https://cyphral.co.uk/api/booking/hold', {
+    const res = await SELF.fetch('https://cyphral.co.uk/api/booking/book', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Origin: ORIGIN },
       body: '{"__proto__": {"polluted": true}}',
@@ -186,17 +186,17 @@ describe('POST /api/booking/hold — global request handling in the real build',
   });
 
   it('an honeypot-filled submission returns the same success shape but creates nothing', async () => {
-    const res = await SELF.fetch('https://cyphral.co.uk/api/booking/hold', {
+    const res = await SELF.fetch('https://cyphral.co.uk/api/booking/book', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Origin: ORIGIN },
       body: JSON.stringify({ ...validBody, website: 'i-am-a-bot' }),
     });
-    expect(res.status).toBe(202);
-    expect(await res.json()).toEqual({ status: 'verification_sent', holdMinutes: 15 });
+    expect(res.status).toBe(201);
+    expect(await res.json()).toEqual({ status: 'booked' });
   });
 
   it('a well-shaped request reaches real Turnstile verification and then fails on its deliberately unavailable slot', async () => {
-    const res = await SELF.fetch('https://cyphral.co.uk/api/booking/hold', {
+    const res = await SELF.fetch('https://cyphral.co.uk/api/booking/book', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Origin: ORIGIN },
       body: JSON.stringify(validBody),
@@ -206,23 +206,13 @@ describe('POST /api/booking/hold — global request handling in the real build',
   });
 
   it('GET is not allowed', async () => {
-    const res = await SELF.fetch('https://cyphral.co.uk/api/booking/hold', { method: 'GET' });
+    const res = await SELF.fetch('https://cyphral.co.uk/api/booking/book', { method: 'GET' });
     expect(res.status).toBe(405);
     expect(res.headers.get('Allow')).toBe('POST');
   });
 });
 
-describe('POST /api/booking/confirm and /cancel — reachable and correctly reject unknown tokens', () => {
-  it('confirm with an unknown token returns link_expired', async () => {
-    const res = await SELF.fetch('https://cyphral.co.uk/api/booking/confirm', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Origin: ORIGIN },
-      body: JSON.stringify({ token: 'a'.repeat(43) }),
-    });
-    expect(res.status).toBe(410);
-    expect(await res.json()).toEqual({ error: 'link_expired' });
-  });
-
+describe('POST /api/booking/cancel — reachable and correctly rejects an unknown token', () => {
   it('cancel with an unknown token returns link_expired', async () => {
     const res = await SELF.fetch('https://cyphral.co.uk/api/booking/cancel', {
       method: 'POST',
@@ -233,8 +223,8 @@ describe('POST /api/booking/confirm and /cancel — reachable and correctly reje
     expect(await res.json()).toEqual({ error: 'link_expired' });
   });
 
-  it('confirm rejects a wrong Origin', async () => {
-    const res = await SELF.fetch('https://cyphral.co.uk/api/booking/confirm', {
+  it('rejects a wrong Origin', async () => {
+    const res = await SELF.fetch('https://cyphral.co.uk/api/booking/cancel', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Origin: 'https://evil.example' },
       body: JSON.stringify({ token: 'a'.repeat(43) }),
@@ -252,9 +242,11 @@ describe('/book* pages and their headers, served via the real ASSETS binding + p
   });
 
   it('GET /book/confirm and /book/cancel return their real prerendered pages', async () => {
+    // /book/confirm is a retired, fully static dead end now — bookings
+    // confirm immediately, so there's nothing left for this page to do.
     const confirmRes = await SELF.fetch('https://cyphral.co.uk/book/confirm');
     expect(confirmRes.status).toBe(200);
-    expect(await confirmRes.text()).toContain('Confirm your call');
+    expect(await confirmRes.text()).toContain('This link is no longer needed');
 
     const cancelRes = await SELF.fetch('https://cyphral.co.uk/book/cancel');
     expect(cancelRes.status).toBe(200);
@@ -306,6 +298,9 @@ describe('/book* pages and their headers, served via the real ASSETS binding + p
   });
 
   it('every script tag on /book, /book/confirm, and /book/cancel is external (no inline body content)', async () => {
+    // /book/confirm has no booking-specific script any more (it's a fully
+    // static dead end), but still carries the site-wide header-scroll.ts tag
+    // every page gets from Layout.astro — so this holds for all three pages.
     for (const path of ['/book', '/book/confirm', '/book/cancel']) {
       const res = await SELF.fetch(`https://cyphral.co.uk${path}`);
       const html = await res.text();
@@ -334,8 +329,8 @@ describe('scheduled() — the cron handler added alongside fetch in src/worker.t
   // scripts/prepare-integration-test-config.mjs for why that's added only
   // to the test-only stripped config, never to the real wrangler.jsonc.
   it('runs the maintenance sweep without throwing, against the real D1 binding', async () => {
-    // A booking whose hold has already expired, so the sweep has visible
-    // work to do — proves this isn't a no-op.
+    // A confirmed booking already past its purge_after date, so the sweep
+    // has visible work to do — proves this isn't a no-op.
     await env.BOOKINGS_DB.batch([
       env.BOOKINGS_DB.prepare('DELETE FROM bookings'),
       env.BOOKINGS_DB.prepare('DELETE FROM rate_events'),
@@ -344,22 +339,22 @@ describe('scheduled() — the cron handler added alongside fetch in src/worker.t
       .prepare(
         `INSERT INTO bookings (
            id, slot_start_utc, slot_end_utc, status, name, email, email_key, topic,
-           visitor_tz, confirm_token_hash, hold_expires_at, created_at, purge_after
-         ) VALUES (?, ?, ?, 'held', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           visitor_tz, cancel_token_hash, created_at, confirmed_at, purge_after
+         ) VALUES (?, ?, ?, 'confirmed', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
-        'scheduled-test-stale-hold',
-        '2026-07-20T09:00:00Z',
-        '2026-07-20T09:30:00Z',
+        'scheduled-test-to-purge',
+        '2020-01-01T09:00:00Z',
+        '2020-01-01T09:30:00Z',
         'Test',
         'test@example.com',
         'test@example.com',
         'ce-readiness',
         'Europe/London',
         'ct-scheduled-test',
-        '2020-01-01T00:00:00Z', // long expired
         '2020-01-01T00:00:00Z',
-        '2099-01-01T00:00:00Z', // not due for purge — proves the row was expired, not deleted
+        '2020-01-01T00:00:00Z',
+        '2020-04-01T00:00:00Z', // long past purge_after
       )
       .run();
 
@@ -367,9 +362,9 @@ describe('scheduled() — the cron handler added alongside fetch in src/worker.t
     expect(result.outcome).toBe('ok');
 
     const row = await env.BOOKINGS_DB
-      .prepare('SELECT status FROM bookings WHERE id = ?')
-      .bind('scheduled-test-stale-hold')
-      .first<{ status: string }>();
-    expect(row?.status).toBe('expired');
+      .prepare('SELECT id FROM bookings WHERE id = ?')
+      .bind('scheduled-test-to-purge')
+      .first<{ id: string }>();
+    expect(row).toBeNull();
   });
 });

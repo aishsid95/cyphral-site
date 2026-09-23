@@ -45,27 +45,27 @@ describe('methodNotAllowed', () => {
 
 describe('checkOrigin', () => {
   it('accepts the production origin', () => {
-    const req = new Request('https://cyphral.co.uk/api/booking/hold', { headers: { Origin: 'https://cyphral.co.uk' } });
+    const req = new Request('https://cyphral.co.uk/api/booking/book', { headers: { Origin: 'https://cyphral.co.uk' } });
     expect(checkOrigin(req, {})).toBe(true);
   });
 
   it('rejects a missing Origin header', () => {
-    const req = new Request('https://cyphral.co.uk/api/booking/hold');
+    const req = new Request('https://cyphral.co.uk/api/booking/book');
     expect(checkOrigin(req, {})).toBe(false);
   });
 
   it('rejects an arbitrary other origin', () => {
-    const req = new Request('https://cyphral.co.uk/api/booking/hold', { headers: { Origin: 'https://evil.example' } });
+    const req = new Request('https://cyphral.co.uk/api/booking/book', { headers: { Origin: 'https://evil.example' } });
     expect(checkOrigin(req, {})).toBe(false);
   });
 
   it('rejects localhost in production (ENVIRONMENT unset)', () => {
-    const req = new Request('https://cyphral.co.uk/api/booking/hold', { headers: { Origin: 'http://localhost:4321' } });
+    const req = new Request('https://cyphral.co.uk/api/booking/book', { headers: { Origin: 'http://localhost:4321' } });
     expect(checkOrigin(req, {})).toBe(false);
   });
 
   it('accepts localhost only when ENVIRONMENT is development', () => {
-    const req = new Request('https://cyphral.co.uk/api/booking/hold', { headers: { Origin: 'http://localhost:4321' } });
+    const req = new Request('https://cyphral.co.uk/api/booking/book', { headers: { Origin: 'http://localhost:4321' } });
     expect(checkOrigin(req, { ENVIRONMENT: 'development' })).toBe(true);
   });
 

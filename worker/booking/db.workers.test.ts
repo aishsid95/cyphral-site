@@ -2,17 +2,15 @@ import { env } from 'cloudflare:workers';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   cancelConfirmedBooking,
-  confirmHeldBooking,
-  countActiveHolds,
   countRateEvents,
-  createHold,
-  expireHeldBooking,
+  createConfirmedBooking,
   findConfirmedBookingByCancelTokenHash,
-  findHeldBookingByConfirmTokenHash,
+  listBookingsNeedingReminder,
   listLiveBookingIntervals,
   markMailFailed,
+  markReminderSent,
   recordRateEvent,
-  type CreateHoldInput,
+  type CreateBookingInput,
 } from './db';
 
 // Monday 20 Jul 2026 10:00-10:30 BST = 09:00-09:30 UTC. London calendar day
@@ -54,7 +52,10 @@ const SLOT_TUESDAY = {
 };
 
 let nextId = 0;
-function holdInput(overrides: Partial<CreateHoldInput> & Pick<CreateHoldInput, 'slotStartUtc' | 'slotEndUtc' | 'bufferedRangeStartUtc' | 'bufferedRangeEndUtc' | 'londonDayStartUtc' | 'londonDayEndUtc'>): CreateHoldInput {
+function bookingInput(
+  overrides: Partial<CreateBookingInput> &
+    Pick<CreateBookingInput, 'slotStartUtc' | 'slotEndUtc' | 'bufferedRangeStartUtc' | 'bufferedRangeEndUtc' | 'londonDayStartUtc' | 'londonDayEndUtc'>,
+): CreateBookingInput {
   nextId += 1;
   return {
     id: `booking-${nextId}`,
@@ -66,9 +67,9 @@ function holdInput(overrides: Partial<CreateHoldInput> & Pick<CreateHoldInput, '
     topic: 'ce-readiness',
     note: null,
     visitorTz: 'Europe/London',
-    confirmTokenHash: `confirm-hash-${nextId}`,
-    holdExpiresAtUtc: '2026-07-19T00:15:00Z',
+    cancelTokenHash: `cancel-hash-${nextId}`,
     createdAtUtc: '2026-07-19T00:00:00Z',
+    confirmedAtUtc: '2026-07-19T00:00:00Z',
     purgeAfterUtc: '2026-10-18T09:30:00Z',
     ...overrides,
   };
@@ -84,36 +85,46 @@ beforeEach(async () => {
   ]);
 });
 
-describe('createHold', () => {
+describe('createConfirmedBooking', () => {
   it('succeeds for a fresh slot with no conflicts', async () => {
-    const result = await createHold(env.BOOKINGS_DB, holdInput(SLOT_A));
+    const result = await createConfirmedBooking(env.BOOKINGS_DB, bookingInput(SLOT_A));
     expect(result).toEqual({ ok: true });
   });
 
-  it('rejects a second hold on the exact same slot', async () => {
-    await createHold(env.BOOKINGS_DB, holdInput(SLOT_A));
-    const second = await createHold(env.BOOKINGS_DB, holdInput(SLOT_A));
+  it('writes status confirmed directly — no held intermediate state', async () => {
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ ...SLOT_A, id: 'direct-confirm' }));
+    const row = await env.BOOKINGS_DB
+      .prepare('SELECT status, confirmed_at FROM bookings WHERE id = ?')
+      .bind('direct-confirm')
+      .first<{ status: string; confirmed_at: string | null }>();
+    expect(row?.status).toBe('confirmed');
+    expect(row?.confirmed_at).not.toBeNull();
+  });
+
+  it('rejects a second booking on the exact same slot', async () => {
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput(SLOT_A));
+    const second = await createConfirmedBooking(env.BOOKINGS_DB, bookingInput(SLOT_A));
     expect(second).toEqual({ ok: false, reason: 'slot_unavailable' });
   });
 
   it('rejects an adjacent slot within the booking buffer', async () => {
-    await createHold(env.BOOKINGS_DB, holdInput(SLOT_A));
-    const adjacent = await createHold(env.BOOKINGS_DB, holdInput(SLOT_B));
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput(SLOT_A));
+    const adjacent = await createConfirmedBooking(env.BOOKINGS_DB, bookingInput(SLOT_B));
     expect(adjacent).toEqual({ ok: false, reason: 'slot_unavailable' });
   });
 
   it('allows a slot clear of the booking buffer', async () => {
-    await createHold(env.BOOKINGS_DB, holdInput(SLOT_A));
-    const clear = await createHold(env.BOOKINGS_DB, holdInput(SLOT_C));
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput(SLOT_A));
+    const clear = await createConfirmedBooking(env.BOOKINGS_DB, bookingInput(SLOT_C));
     expect(clear).toEqual({ ok: true });
   });
 
   it('rejects once the daily cap is reached, even for a non-overlapping slot the same day', async () => {
-    await createHold(env.BOOKINGS_DB, holdInput({ ...SLOT_A, maxCallsPerDay: 2 }));
-    await createHold(env.BOOKINGS_DB, holdInput({ ...SLOT_C, maxCallsPerDay: 2 }));
-    const thirdSameDay = await createHold(
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ ...SLOT_A, maxCallsPerDay: 2 }));
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ ...SLOT_C, maxCallsPerDay: 2 }));
+    const thirdSameDay = await createConfirmedBooking(
       env.BOOKINGS_DB,
-      holdInput({
+      bookingInput({
         slotStartUtc: '2026-07-20T15:00:00Z',
         slotEndUtc: '2026-07-20T15:30:00Z',
         bufferedRangeStartUtc: '2026-07-20T14:45:00Z',
@@ -127,110 +138,30 @@ describe('createHold', () => {
   });
 
   it('allows the cap-reaching day to still book on a different day', async () => {
-    await createHold(env.BOOKINGS_DB, holdInput({ ...SLOT_A, maxCallsPerDay: 2 }));
-    await createHold(env.BOOKINGS_DB, holdInput({ ...SLOT_C, maxCallsPerDay: 2 }));
-    const nextDay = await createHold(env.BOOKINGS_DB, holdInput({ ...SLOT_TUESDAY, maxCallsPerDay: 2 }));
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ ...SLOT_A, maxCallsPerDay: 2 }));
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ ...SLOT_C, maxCallsPerDay: 2 }));
+    const nextDay = await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ ...SLOT_TUESDAY, maxCallsPerDay: 2 }));
     expect(nextDay).toEqual({ ok: true });
   });
 
-  it('rejects a second hold from the same email, even for an unrelated slot', async () => {
-    await createHold(env.BOOKINGS_DB, holdInput({ ...SLOT_A, emailKey: 'dup@example.com', email: 'dup@example.com' }));
-    const secondFromSameEmail = await createHold(
+  it('rejects a second booking from the same email, even for an unrelated slot', async () => {
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ ...SLOT_A, emailKey: 'dup@example.com', email: 'dup@example.com' }));
+    const secondFromSameEmail = await createConfirmedBooking(
       env.BOOKINGS_DB,
-      holdInput({ ...SLOT_C, emailKey: 'dup@example.com', email: 'dup@example.com' }),
+      bookingInput({ ...SLOT_C, emailKey: 'dup@example.com', email: 'dup@example.com' }),
     );
     expect(secondFromSameEmail).toEqual({ ok: false, reason: 'slot_unavailable' });
   });
-
-  it('frees a stale (past hold_expires_at) held slot atomically within the same batch', async () => {
-    const first = await createHold(
-      env.BOOKINGS_DB,
-      holdInput({ ...SLOT_A, holdExpiresAtUtc: '2026-07-19T00:15:00Z', createdAtUtc: '2026-07-19T00:00:00Z' }),
-    );
-    expect(first).toEqual({ ok: true });
-
-    // Attempt a new hold on the same slot "later", after the first hold's
-    // expiry — the stale row must be flipped to expired and the slot re-offered
-    // to the second attempt, in the same atomic batch.
-    const second = await createHold(
-      env.BOOKINGS_DB,
-      holdInput({ ...SLOT_A, holdExpiresAtUtc: '2026-07-19T01:15:00Z', createdAtUtc: '2026-07-19T01:00:00Z' }),
-    );
-    expect(second).toEqual({ ok: true });
-  });
-
-  it('does not free a held slot before its hold_expires_at', async () => {
-    await createHold(
-      env.BOOKINGS_DB,
-      holdInput({ ...SLOT_A, holdExpiresAtUtc: '2026-07-19T01:00:00Z', createdAtUtc: '2026-07-19T00:00:00Z' }),
-    );
-    const stillHeld = await createHold(
-      env.BOOKINGS_DB,
-      holdInput({ ...SLOT_A, holdExpiresAtUtc: '2026-07-19T00:45:00Z', createdAtUtc: '2026-07-19T00:30:00Z' }),
-    );
-    expect(stillHeld).toEqual({ ok: false, reason: 'slot_unavailable' });
-  });
 });
 
-describe('confirmHeldBooking', () => {
-  it('confirms a valid, unexpired hold and issues a cancel token', async () => {
-    await createHold(env.BOOKINGS_DB, holdInput({ ...SLOT_A, confirmTokenHash: 'ct-1' }));
-    const result = await confirmHeldBooking(env.BOOKINGS_DB, {
-      confirmTokenHash: 'ct-1',
-      nowUtc: '2026-07-19T00:10:00Z',
-      cancelTokenHash: 'cancel-1',
-      confirmedAtUtc: '2026-07-19T00:10:00Z',
-    });
-    expect(result).toEqual({ ok: true });
-  });
-
-  it('rejects an unknown token', async () => {
-    const result = await confirmHeldBooking(env.BOOKINGS_DB, {
-      confirmTokenHash: 'does-not-exist',
-      nowUtc: '2026-07-19T00:10:00Z',
-      cancelTokenHash: 'cancel-x',
-      confirmedAtUtc: '2026-07-19T00:10:00Z',
-    });
-    expect(result).toEqual({ ok: false, reason: 'link_expired' });
-  });
-
-  it('rejects a token whose hold has already expired', async () => {
-    await createHold(
+describe('findConfirmedBookingByCancelTokenHash', () => {
+  it('finds a confirmed booking by its cancel token hash, with full booking details', async () => {
+    await createConfirmedBooking(
       env.BOOKINGS_DB,
-      holdInput({ ...SLOT_A, confirmTokenHash: 'ct-2', holdExpiresAtUtc: '2026-07-19T00:15:00Z' }),
-    );
-    const result = await confirmHeldBooking(env.BOOKINGS_DB, {
-      confirmTokenHash: 'ct-2',
-      nowUtc: '2026-07-19T00:20:00Z', // after hold_expires_at
-      cancelTokenHash: 'cancel-2',
-      confirmedAtUtc: '2026-07-19T00:20:00Z',
-    });
-    expect(result).toEqual({ ok: false, reason: 'link_expired' });
-  });
-
-  it('a second confirm attempt with the same token fails (double-click / race)', async () => {
-    await createHold(env.BOOKINGS_DB, holdInput({ ...SLOT_A, confirmTokenHash: 'ct-3' }));
-    const confirmArgs = {
-      confirmTokenHash: 'ct-3',
-      nowUtc: '2026-07-19T00:10:00Z',
-      cancelTokenHash: 'cancel-3',
-      confirmedAtUtc: '2026-07-19T00:10:00Z',
-    };
-    const first = await confirmHeldBooking(env.BOOKINGS_DB, confirmArgs);
-    const second = await confirmHeldBooking(env.BOOKINGS_DB, confirmArgs);
-    expect(first).toEqual({ ok: true });
-    expect(second).toEqual({ ok: false, reason: 'link_expired' });
-  });
-});
-
-describe('findHeldBookingByConfirmTokenHash / expireHeldBooking', () => {
-  it('finds a held booking by its confirm token hash, with full booking details', async () => {
-    await createHold(
-      env.BOOKINGS_DB,
-      holdInput({
+      bookingInput({
         ...SLOT_A,
         id: 'find-me',
-        confirmTokenHash: 'ct-find',
+        cancelTokenHash: 'cancel-find',
         name: 'Ada Lovelace',
         email: 'ada@example.com',
         emailKey: 'ada@example.com',
@@ -240,7 +171,7 @@ describe('findHeldBookingByConfirmTokenHash / expireHeldBooking', () => {
         visitorTz: 'Europe/Paris',
       }),
     );
-    const found = await findHeldBookingByConfirmTokenHash(env.BOOKINGS_DB, 'ct-find');
+    const found = await findConfirmedBookingByCancelTokenHash(env.BOOKINGS_DB, 'cancel-find');
     expect(found).toEqual({
       id: 'find-me',
       slotStartUtc: SLOT_A.slotStartUtc,
@@ -256,44 +187,13 @@ describe('findHeldBookingByConfirmTokenHash / expireHeldBooking', () => {
   });
 
   it('returns null for an unknown token', async () => {
-    expect(await findHeldBookingByConfirmTokenHash(env.BOOKINGS_DB, 'nope')).toBeNull();
-  });
-
-  it('expiring a held booking frees its slot for a new hold', async () => {
-    await createHold(env.BOOKINGS_DB, holdInput({ ...SLOT_A, id: 'to-expire' }));
-    await expireHeldBooking(env.BOOKINGS_DB, 'to-expire');
-    const result = await createHold(env.BOOKINGS_DB, holdInput(SLOT_A));
-    expect(result).toEqual({ ok: true });
-  });
-
-  it('expiring an already-confirmed booking is a no-op (only touches held rows)', async () => {
-    await createHold(env.BOOKINGS_DB, holdInput({ ...SLOT_A, id: 'stays-confirmed', confirmTokenHash: 'ct-4' }));
-    await confirmHeldBooking(env.BOOKINGS_DB, {
-      confirmTokenHash: 'ct-4',
-      nowUtc: '2026-07-19T00:10:00Z',
-      cancelTokenHash: 'cancel-4',
-      confirmedAtUtc: '2026-07-19T00:10:00Z',
-    });
-    await expireHeldBooking(env.BOOKINGS_DB, 'stays-confirmed');
-    // Still confirmed and still occupying the slot: a new hold on it must fail.
-    const stillBlocked = await createHold(env.BOOKINGS_DB, holdInput(SLOT_A));
-    expect(stillBlocked).toEqual({ ok: false, reason: 'slot_unavailable' });
+    expect(await findConfirmedBookingByCancelTokenHash(env.BOOKINGS_DB, 'nope')).toBeNull();
   });
 });
 
 describe('cancelConfirmedBooking', () => {
-  async function confirmedBooking(cancelTokenHash: string) {
-    await createHold(env.BOOKINGS_DB, holdInput({ ...SLOT_A, confirmTokenHash: `ct-for-${cancelTokenHash}` }));
-    await confirmHeldBooking(env.BOOKINGS_DB, {
-      confirmTokenHash: `ct-for-${cancelTokenHash}`,
-      nowUtc: '2026-07-19T00:10:00Z',
-      cancelTokenHash,
-      confirmedAtUtc: '2026-07-19T00:10:00Z',
-    });
-  }
-
   it('cancels a confirmed booking whose slot has not started', async () => {
-    await confirmedBooking('cancel-ok');
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ ...SLOT_A, cancelTokenHash: 'cancel-ok' }));
     const result = await cancelConfirmedBooking(env.BOOKINGS_DB, {
       cancelTokenHash: 'cancel-ok',
       nowUtc: '2026-07-19T00:30:00Z', // well before the 20 Jul slot
@@ -303,7 +203,7 @@ describe('cancelConfirmedBooking', () => {
   });
 
   it('rejects cancelling after the slot has already started', async () => {
-    await confirmedBooking('cancel-late');
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ ...SLOT_A, cancelTokenHash: 'cancel-late' }));
     const result = await cancelConfirmedBooking(env.BOOKINGS_DB, {
       cancelTokenHash: 'cancel-late',
       nowUtc: '2026-07-20T09:15:00Z', // slot started at 09:00
@@ -322,7 +222,7 @@ describe('cancelConfirmedBooking', () => {
   });
 
   it('a second cancel attempt with the same token fails (token is single-use)', async () => {
-    await confirmedBooking('cancel-twice');
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ ...SLOT_A, cancelTokenHash: 'cancel-twice' }));
     const args = { cancelTokenHash: 'cancel-twice', nowUtc: '2026-07-19T00:30:00Z', cancelledAtUtc: '2026-07-19T00:30:00Z' };
     const first = await cancelConfirmedBooking(env.BOOKINGS_DB, args);
     const second = await cancelConfirmedBooking(env.BOOKINGS_DB, args);
@@ -330,123 +230,165 @@ describe('cancelConfirmedBooking', () => {
     expect(second).toEqual({ ok: false, reason: 'link_expired' });
   });
 
-  it('cancelling frees the slot for a new hold', async () => {
-    await confirmedBooking('cancel-frees');
+  it('cancelling frees the slot for a new booking', async () => {
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ ...SLOT_A, cancelTokenHash: 'cancel-frees' }));
     await cancelConfirmedBooking(env.BOOKINGS_DB, {
       cancelTokenHash: 'cancel-frees',
       nowUtc: '2026-07-19T00:30:00Z',
       cancelledAtUtc: '2026-07-19T00:30:00Z',
     });
-    const result = await createHold(env.BOOKINGS_DB, holdInput(SLOT_A));
+    const result = await createConfirmedBooking(env.BOOKINGS_DB, bookingInput(SLOT_A));
     expect(result).toEqual({ ok: true });
-  });
-});
-
-describe('findConfirmedBookingByCancelTokenHash', () => {
-  it('finds a confirmed booking by its cancel token hash, with full booking details', async () => {
-    await createHold(
-      env.BOOKINGS_DB,
-      holdInput({
-        ...SLOT_A,
-        id: 'to-confirm-then-find',
-        confirmTokenHash: 'ct-for-find-cancel',
-        name: 'Grace Hopper',
-        email: 'grace@example.com',
-        emailKey: 'grace@example.com',
-        company: null,
-        topic: 'cyber-care',
-        note: null,
-        visitorTz: 'America/New_York',
-      }),
-    );
-    await confirmHeldBooking(env.BOOKINGS_DB, {
-      confirmTokenHash: 'ct-for-find-cancel',
-      nowUtc: '2026-07-19T00:10:00Z',
-      cancelTokenHash: 'cancel-to-find',
-      confirmedAtUtc: '2026-07-19T00:10:00Z',
-    });
-
-    const found = await findConfirmedBookingByCancelTokenHash(env.BOOKINGS_DB, 'cancel-to-find');
-    expect(found).toEqual({
-      id: 'to-confirm-then-find',
-      slotStartUtc: SLOT_A.slotStartUtc,
-      slotEndUtc: SLOT_A.slotEndUtc,
-      name: 'Grace Hopper',
-      email: 'grace@example.com',
-      emailKey: 'grace@example.com',
-      company: null,
-      topic: 'cyber-care',
-      note: null,
-      visitorTz: 'America/New_York',
-    });
-  });
-
-  it('returns null for a held (not yet confirmed) booking', async () => {
-    await createHold(env.BOOKINGS_DB, holdInput({ ...SLOT_A, confirmTokenHash: 'still-held' }));
-    expect(await findConfirmedBookingByCancelTokenHash(env.BOOKINGS_DB, 'still-held')).toBeNull();
-  });
-
-  it('returns null for an unknown token', async () => {
-    expect(await findConfirmedBookingByCancelTokenHash(env.BOOKINGS_DB, 'never-issued')).toBeNull();
   });
 });
 
 describe('markMailFailed', () => {
   it('sets mail_failed on the booking without changing its status', async () => {
-    await createHold(env.BOOKINGS_DB, holdInput({ ...SLOT_A, id: 'mail-fail-me', confirmTokenHash: 'ct-mail-fail' }));
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ ...SLOT_A, id: 'mail-fail-me' }));
     await markMailFailed(env.BOOKINGS_DB, 'mail-fail-me');
 
     const row = await env.BOOKINGS_DB
       .prepare('SELECT status, mail_failed FROM bookings WHERE id = ?')
       .bind('mail-fail-me')
       .first<{ status: string; mail_failed: number }>();
-    expect(row).toEqual({ status: 'held', mail_failed: 1 });
+    expect(row).toEqual({ status: 'confirmed', mail_failed: 1 });
   });
 });
 
 describe('listLiveBookingIntervals', () => {
-  it('includes held and confirmed bookings, excludes cancelled and expired', async () => {
-    await createHold(env.BOOKINGS_DB, holdInput({ ...SLOT_A, id: 'held-1' })); // held
-    await createHold(env.BOOKINGS_DB, holdInput({ ...SLOT_C, id: 'confirm-me', confirmTokenHash: 'ct-list' }));
-    await confirmHeldBooking(env.BOOKINGS_DB, {
-      confirmTokenHash: 'ct-list',
-      nowUtc: '2026-07-19T00:10:00Z',
-      cancelTokenHash: 'cancel-list',
-      confirmedAtUtc: '2026-07-19T00:10:00Z',
-    }); // confirmed
-    await createHold(env.BOOKINGS_DB, holdInput({ ...SLOT_TUESDAY, id: 'expire-me' }));
-    await expireHeldBooking(env.BOOKINGS_DB, 'expire-me'); // expired
+  it('includes confirmed bookings, excludes cancelled', async () => {
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ ...SLOT_A, id: 'live-1', cancelTokenHash: 'ct-live-1' }));
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ ...SLOT_C, id: 'cancel-me', cancelTokenHash: 'ct-cancel-me' }));
+    await cancelConfirmedBooking(env.BOOKINGS_DB, {
+      cancelTokenHash: 'ct-cancel-me',
+      nowUtc: '2026-07-19T00:30:00Z',
+      cancelledAtUtc: '2026-07-19T00:30:00Z',
+    });
 
     const intervals = await listLiveBookingIntervals(env.BOOKINGS_DB);
-    expect(intervals).toHaveLength(2);
+    expect(intervals).toHaveLength(1);
     expect(intervals).toContainEqual({ startUtc: SLOT_A.slotStartUtc, endUtc: SLOT_A.slotEndUtc });
-    expect(intervals).toContainEqual({ startUtc: SLOT_C.slotStartUtc, endUtc: SLOT_C.slotEndUtc });
   });
 });
 
-describe('countActiveHolds', () => {
-  it('counts only unexpired held bookings as of the given instant', async () => {
-    await createHold(
+describe('listBookingsNeedingReminder', () => {
+  it('includes a confirmed, unreminded booking starting between 1 and 24 hours from now', async () => {
+    await createConfirmedBooking(
       env.BOOKINGS_DB,
-      holdInput({ ...SLOT_A, id: 'active', holdExpiresAtUtc: '2026-07-19T00:15:00Z', createdAtUtc: '2026-07-19T00:00:00Z' }),
+      bookingInput({ ...SLOT_A, id: 'due-reminder', name: 'Grace Hopper', email: 'grace@example.com', emailKey: 'grace@example.com' }),
     );
-    await createHold(
-      env.BOOKINGS_DB,
-      holdInput({ ...SLOT_C, id: 'gone-stale', holdExpiresAtUtc: '2026-07-18T00:15:00Z', createdAtUtc: '2026-07-18T00:00:00Z' }),
-    );
-    expect(await countActiveHolds(env.BOOKINGS_DB, '2026-07-19T00:10:00Z')).toBe(1); // "gone-stale" already past its own expiry
+    // Slot is 2026-07-20T09:00:00Z; "now" here is 12 hours before it.
+    const candidates = await listBookingsNeedingReminder(env.BOOKINGS_DB, '2026-07-19T21:00:00Z');
+    expect(candidates).toEqual([
+      {
+        id: 'due-reminder',
+        name: 'Grace Hopper',
+        email: 'grace@example.com',
+        slotStartUtc: SLOT_A.slotStartUtc,
+        visitorTz: 'Europe/London',
+      },
+    ]);
+  });
+
+  it('excludes a booking whose slot starts less than 1 hour from now', async () => {
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ ...SLOT_A, id: 'too-soon' }));
+    // 30 minutes before the slot.
+    const candidates = await listBookingsNeedingReminder(env.BOOKINGS_DB, '2026-07-20T08:30:00Z');
+    expect(candidates).toEqual([]);
+  });
+
+  it('excludes a booking whose slot starts more than 24 hours from now', async () => {
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ ...SLOT_A, id: 'too-far' }));
+    // 25 hours before the slot.
+    const candidates = await listBookingsNeedingReminder(env.BOOKINGS_DB, '2026-07-19T08:00:00Z');
+    expect(candidates).toEqual([]);
+  });
+
+  it('excludes a booking that already has reminder_sent_at set', async () => {
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ ...SLOT_A, id: 'already-reminded', cancelTokenHash: 'ct-already' }));
+    await markReminderSent(env.BOOKINGS_DB, { id: 'already-reminded', cancelTokenHash: 'new-hash', sentAtUtc: '2026-07-19T21:00:00Z' });
+    const candidates = await listBookingsNeedingReminder(env.BOOKINGS_DB, '2026-07-19T21:05:00Z');
+    expect(candidates).toEqual([]);
+  });
+
+  it('excludes a cancelled booking', async () => {
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ ...SLOT_A, id: 'cancelled-one', cancelTokenHash: 'ct-cancelled-one' }));
+    await cancelConfirmedBooking(env.BOOKINGS_DB, {
+      cancelTokenHash: 'ct-cancelled-one',
+      nowUtc: '2026-07-19T00:30:00Z',
+      cancelledAtUtc: '2026-07-19T00:30:00Z',
+    });
+    const candidates = await listBookingsNeedingReminder(env.BOOKINGS_DB, '2026-07-19T21:00:00Z');
+    expect(candidates).toEqual([]);
+  });
+});
+
+describe('markReminderSent', () => {
+  it('sets reminder_sent_at and rotates the cancel token hash', async () => {
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ ...SLOT_A, id: 'to-remind', cancelTokenHash: 'original-hash' }));
+    const result = await markReminderSent(env.BOOKINGS_DB, {
+      id: 'to-remind',
+      cancelTokenHash: 'rotated-hash',
+      sentAtUtc: '2026-07-19T21:00:00Z',
+    });
+    expect(result).toEqual({ ok: true });
+
+    const row = await env.BOOKINGS_DB
+      .prepare('SELECT reminder_sent_at, cancel_token_hash FROM bookings WHERE id = ?')
+      .bind('to-remind')
+      .first<{ reminder_sent_at: string | null; cancel_token_hash: string }>();
+    expect(row?.reminder_sent_at).toBe('2026-07-19T21:00:00Z');
+    expect(row?.cancel_token_hash).toBe('rotated-hash');
+  });
+
+  it('the original cancel token stops matching once rotated, the new one works', async () => {
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ ...SLOT_A, id: 'rotate-check', cancelTokenHash: 'original-hash-2' }));
+    await markReminderSent(env.BOOKINGS_DB, { id: 'rotate-check', cancelTokenHash: 'rotated-hash-2', sentAtUtc: '2026-07-19T21:00:00Z' });
+
+    expect(await findConfirmedBookingByCancelTokenHash(env.BOOKINGS_DB, 'original-hash-2')).toBeNull();
+    expect(await findConfirmedBookingByCancelTokenHash(env.BOOKINGS_DB, 'rotated-hash-2')).not.toBeNull();
+  });
+
+  it('a second call for the same booking is a no-op (idempotent — protects a double cron run)', async () => {
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ ...SLOT_A, id: 'twice', cancelTokenHash: 'first-hash' }));
+    const first = await markReminderSent(env.BOOKINGS_DB, { id: 'twice', cancelTokenHash: 'second-hash', sentAtUtc: '2026-07-19T21:00:00Z' });
+    const second = await markReminderSent(env.BOOKINGS_DB, { id: 'twice', cancelTokenHash: 'third-hash', sentAtUtc: '2026-07-19T21:05:00Z' });
+    expect(first).toEqual({ ok: true });
+    expect(second).toEqual({ ok: false });
+
+    // The second call's hash must not have overwritten the first's.
+    const row = await env.BOOKINGS_DB
+      .prepare('SELECT cancel_token_hash FROM bookings WHERE id = ?')
+      .bind('twice')
+      .first<{ cancel_token_hash: string }>();
+    expect(row?.cancel_token_hash).toBe('second-hash');
+  });
+
+  it('fails for a cancelled booking', async () => {
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ ...SLOT_A, id: 'cancelled-no-remind', cancelTokenHash: 'ct-cnr' }));
+    await cancelConfirmedBooking(env.BOOKINGS_DB, {
+      cancelTokenHash: 'ct-cnr',
+      nowUtc: '2026-07-19T00:30:00Z',
+      cancelledAtUtc: '2026-07-19T00:30:00Z',
+    });
+    const result = await markReminderSent(env.BOOKINGS_DB, {
+      id: 'cancelled-no-remind',
+      cancelTokenHash: 'irrelevant',
+      sentAtUtc: '2026-07-19T21:00:00Z',
+    });
+    expect(result).toEqual({ ok: false });
   });
 });
 
 describe('rate_events', () => {
   it('counts events for a bucket/subject since a given instant, scoped correctly', async () => {
-    await recordRateEvent(env.BOOKINGS_DB, { bucket: 'hold:ip', subjectHash: 'ip-hash-1', nowUtc: '2026-07-19T00:00:00Z' });
-    await recordRateEvent(env.BOOKINGS_DB, { bucket: 'hold:ip', subjectHash: 'ip-hash-1', nowUtc: '2026-07-19T00:05:00Z' });
-    await recordRateEvent(env.BOOKINGS_DB, { bucket: 'hold:ip', subjectHash: 'ip-hash-2', nowUtc: '2026-07-19T00:05:00Z' }); // different subject
-    await recordRateEvent(env.BOOKINGS_DB, { bucket: 'hold:email', subjectHash: 'ip-hash-1', nowUtc: '2026-07-19T00:05:00Z' }); // different bucket
+    await recordRateEvent(env.BOOKINGS_DB, { bucket: 'book:ip', subjectHash: 'ip-hash-1', nowUtc: '2026-07-19T00:00:00Z' });
+    await recordRateEvent(env.BOOKINGS_DB, { bucket: 'book:ip', subjectHash: 'ip-hash-1', nowUtc: '2026-07-19T00:05:00Z' });
+    await recordRateEvent(env.BOOKINGS_DB, { bucket: 'book:ip', subjectHash: 'ip-hash-2', nowUtc: '2026-07-19T00:05:00Z' }); // different subject
+    await recordRateEvent(env.BOOKINGS_DB, { bucket: 'book:email', subjectHash: 'ip-hash-1', nowUtc: '2026-07-19T00:05:00Z' }); // different bucket
 
     const count = await countRateEvents(env.BOOKINGS_DB, {
-      bucket: 'hold:ip',
+      bucket: 'book:ip',
       subjectHash: 'ip-hash-1',
       sinceUtc: '2026-07-19T00:00:00Z',
     });
@@ -454,9 +396,9 @@ describe('rate_events', () => {
   });
 
   it('excludes events before the sinceUtc cutoff', async () => {
-    await recordRateEvent(env.BOOKINGS_DB, { bucket: 'hold:ip', subjectHash: 'ip-hash-3', nowUtc: '2026-07-19T00:00:00Z' });
+    await recordRateEvent(env.BOOKINGS_DB, { bucket: 'book:ip', subjectHash: 'ip-hash-3', nowUtc: '2026-07-19T00:00:00Z' });
     const count = await countRateEvents(env.BOOKINGS_DB, {
-      bucket: 'hold:ip',
+      bucket: 'book:ip',
       subjectHash: 'ip-hash-3',
       sinceUtc: '2026-07-19T00:00:01Z', // one second after the only event
     });

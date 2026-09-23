@@ -12,9 +12,9 @@ const DAY_MS = 24 * HOUR_MS;
 
 export const RATE_LIMITS = {
   slotsPerIp: { bucket: 'slots:ip', windowMs: 10 * 60 * 1000, limit: 60 },
-  holdPerIpHour: { bucket: 'hold:ip', windowMs: HOUR_MS, limit: 3 },
-  holdPerIpDay: { bucket: 'hold:ip', windowMs: DAY_MS, limit: 10 },
-  holdPerEmailDay: { bucket: 'hold:email', windowMs: DAY_MS, limit: 3 },
+  bookPerIpHour: { bucket: 'book:ip', windowMs: HOUR_MS, limit: 3 },
+  bookPerIpDay: { bucket: 'book:ip', windowMs: DAY_MS, limit: 10 },
+  bookPerEmailDay: { bucket: 'book:email', windowMs: DAY_MS, limit: 3 },
   mailPerRecipientHour: { bucket: 'mail:recipient', windowMs: HOUR_MS, limit: 2 },
   mailPerRecipientDay: { bucket: 'mail:recipient', windowMs: DAY_MS, limit: 4 },
 } as const;

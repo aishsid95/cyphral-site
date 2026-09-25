@@ -236,7 +236,11 @@ if (app) {
     return (window as unknown as { turnstile?: TurnstileApi }).turnstile;
   }
 
-  const TURNSTILE_TOKEN_TIMEOUT_MS = 15000;
+  // Generous: with appearance "interaction-only", execute() can pop a real
+  // visible challenge the visitor has to look at and complete by hand, not
+  // just a network round trip — this is a backstop against a genuinely
+  // broken/hung widget, not a limit on how long a person is allowed to take.
+  const TURNSTILE_TOKEN_TIMEOUT_MS = 120000;
   let pendingToken: { resolve: (token: string) => void; reject: () => void } | null = null;
 
   (window as unknown as { cyphralTurnstileSuccess: (token: string, ...rest: unknown[]) => void }).cyphralTurnstileSuccess = (
@@ -340,7 +344,11 @@ if (app) {
     submitInFlight = true;
     submitBtn.disabled = true;
     const originalLabel = submitBtn.textContent;
-    submitBtn.textContent = 'Requesting...';
+    // "Checking..." while waiting on Turnstile (which, with appearance
+    // "interaction-only", may pop a visible challenge the visitor has to
+    // actually complete — this can take a while and must not look frozen),
+    // then "Requesting..." once that's done and the real POST is in flight.
+    submitBtn.textContent = 'Checking...';
 
     let token: string;
     try {
@@ -353,6 +361,8 @@ if (app) {
       submitBtn.textContent = originalLabel;
       return;
     }
+
+    submitBtn.textContent = 'Requesting...';
 
     const formData = new FormData(formEl);
     const payload = {

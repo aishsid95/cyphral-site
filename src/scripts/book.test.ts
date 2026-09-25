@@ -52,7 +52,7 @@ const FIXTURE_HTML = `
       <div aria-hidden="true">
         <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" />
       </div>
-      <div id="cf-turnstile-widget" class="cf-turnstile" data-sitekey="test-sitekey" data-action="booking_book" data-execution="execute" data-callback="cyphralTurnstileSuccess" data-error-callback="cyphralTurnstileError" data-expired-callback="cyphralTurnstileExpired"></div>
+      <div id="cf-turnstile-widget" class="cf-turnstile min-h-[65px]" data-sitekey="test-sitekey" data-action="booking_book" data-execution="execute" data-appearance="interaction-only" data-callback="cyphralTurnstileSuccess" data-error-callback="cyphralTurnstileError" data-expired-callback="cyphralTurnstileExpired"></div>
       <div>
         <button type="submit" id="booking-submit">Request this time</button>
       </div>
@@ -69,14 +69,23 @@ interface TurnstileStub {
   reset: ReturnType<typeof vi.fn>;
 }
 
-/** Default: execute() succeeds immediately with a fresh-looking token. Tests override for error/expired/hang cases. */
-function installTurnstileStub(onExecute?: () => void): TurnstileStub {
+/**
+ * Default: execute() succeeds immediately with a fresh-looking token — the
+ * common non-interactive-pass case, where appearance "interaction-only"
+ * never shows anything. `manual: true` simulates a visible challenge the
+ * visitor has to actually complete: execute() does nothing on its own, and
+ * the test resolves it later by calling the same global callback the real
+ * widget would. `onExecute` fully replaces the default for error/expired
+ * cases.
+ */
+function installTurnstileStub(options?: { manual?: boolean; onExecute?: () => void }): TurnstileStub {
   let tokenCounter = 0;
   const execute = vi.fn(() => {
-    if (onExecute) {
-      onExecute();
+    if (options?.onExecute) {
+      options.onExecute();
       return;
     }
+    if (options?.manual) return; // the test itself decides when/how this resolves
     tokenCounter += 1;
     (window as unknown as { cyphralTurnstileSuccess: (token: string) => void }).cyphralTurnstileSuccess(`fresh-token-${tokenCounter}`);
   });
@@ -257,8 +266,10 @@ describe('failed requests re-enable the button and reset the widget', () => {
   });
 
   it('an expired Turnstile check before the request is even sent still re-enables the button and resets the widget', async () => {
-    const stub = installTurnstileStub(() => {
-      (window as unknown as { cyphralTurnstileExpired: () => void }).cyphralTurnstileExpired();
+    const stub = installTurnstileStub({
+      onExecute: () => {
+        (window as unknown as { cyphralTurnstileExpired: () => void }).cyphralTurnstileExpired();
+      },
     });
     const { formEl, submitBtn, nameEl, emailEl, formStatusEl } = await boot();
 
@@ -271,6 +282,43 @@ describe('failed requests re-enable the button and reset the widget', () => {
     expect(submitBtn.disabled).toBe(false);
     expect(fetchMock).toHaveBeenCalledTimes(1); // only the GET for slots — never reached the POST at all
     expect(stub.reset).toHaveBeenCalledTimes(1); // getFreshTurnstileToken always resets before it executes, even on the first attempt
+  });
+});
+
+describe('a visible challenge (appearance "interaction-only") does not require a second click', () => {
+  it('shows "Checking..." while the challenge is unresolved, "Requesting..." once it resolves, and completes the booking from the same click', async () => {
+    const stub = installTurnstileStub({ manual: true });
+    let resolvePost!: (res: Response) => void;
+    postHandler = () => new Promise<Response>((resolve) => { resolvePost = resolve; });
+    const { formEl, submitBtn, nameEl, emailEl, confirmationEl } = await boot();
+
+    selectFirstSlot();
+    fillValidFields({ nameEl, emailEl });
+    submit(formEl);
+    await flushPromises();
+
+    // The challenge hasn't resolved yet — nothing has been posted, and the
+    // button says so rather than sitting there looking frozen.
+    expect(submitBtn.disabled).toBe(true);
+    expect(submitBtn.textContent).toBe('Checking...');
+    expect(fetchMock).toHaveBeenCalledTimes(1); // only the earlier GET for slots
+
+    // The visitor completes the (simulated) visible challenge.
+    (window as unknown as { cyphralTurnstileSuccess: (token: string) => void }).cyphralTurnstileSuccess('completed-challenge-token');
+    await flushPromises();
+
+    // Proceeded automatically from the same original click — no second submit.
+    expect(submitBtn.textContent).toBe('Requesting...');
+    expect(stub.execute).toHaveBeenCalledTimes(1);
+    const postCall = fetchMock.mock.calls.find((call) => (call[1] as RequestInit | undefined)?.method === 'POST');
+    expect(postCall).toBeDefined();
+    const body = JSON.parse((postCall![1] as RequestInit).body as string);
+    expect(body.turnstileToken).toBe('completed-challenge-token');
+
+    resolvePost(new Response(JSON.stringify({ status: 'booked' }), { status: 201 }));
+    await flushPromises();
+
+    expect(confirmationEl.classList.contains('hidden')).toBe(false);
   });
 });
 

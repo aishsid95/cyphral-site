@@ -36,6 +36,7 @@ if (app) {
   const emailErrorEl = document.getElementById('email-error')!;
   const confirmationEl = document.getElementById('booking-confirmation')!;
   const confirmationHeadingEl = document.getElementById('booking-confirmation-heading')!;
+  const turnstileContainerEl = document.getElementById('cf-turnstile-widget')!;
 
   app.classList.remove('hidden');
 
@@ -170,14 +171,6 @@ if (app) {
     formEl.classList.remove('hidden');
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     formEl.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'nearest' });
-    updateSubmitState();
-  }
-
-  function updateSubmitState() {
-    const hasSlot = Boolean(selectedSlot);
-    const hasName = nameEl.value.trim().length > 0;
-    const hasEmail = emailEl.value.trim().length > 0;
-    submitBtn.disabled = !(hasSlot && hasName && hasEmail && turnstileToken.length > 0);
   }
 
   weekPrevBtn.addEventListener('click', () => {
@@ -201,8 +194,6 @@ if (app) {
   noteEl.addEventListener('input', () => {
     noteCountEl.textContent = `${noteEl.value.length} / 500`;
   });
-  nameEl.addEventListener('input', updateSubmitState);
-  emailEl.addEventListener('input', updateSubmitState);
 
   async function loadSlots() {
     try {
@@ -225,28 +216,78 @@ if (app) {
   }
 
   // --- Turnstile ---
-  let turnstileToken = '';
-  let turnstileWidgetId: string | undefined;
+  //
+  // Token timing: the widget has data-execution="execute" (see
+  // book.astro), so it never captures a token on its own — only when
+  // getFreshTurnstileToken() below calls turnstile.execute(), which this
+  // script only ever does at the moment of an actual submit attempt. This
+  // is deliberate: the old behaviour let the widget auto-run as soon as it
+  // became visible (right after slot selection), captured a token then, and
+  // reused that same token whenever the visitor eventually clicked submit —
+  // possibly minutes later, after they'd finished filling in the rest of
+  // the form. Tokens are single-use and short-lived, so that stale token
+  // could easily fail server-side verification through no fault of the
+  // visitor's. Fetching one fresh at click time removes that whole window.
+  interface TurnstileApi {
+    execute: (container: string | HTMLElement, options?: Record<string, unknown>) => void;
+    reset: (container?: string | HTMLElement) => void;
+  }
+  function getTurnstile(): TurnstileApi | undefined {
+    return (window as unknown as { turnstile?: TurnstileApi }).turnstile;
+  }
+
+  const TURNSTILE_TOKEN_TIMEOUT_MS = 15000;
+  let pendingToken: { resolve: (token: string) => void; reject: () => void } | null = null;
 
   (window as unknown as { cyphralTurnstileSuccess: (token: string, ...rest: unknown[]) => void }).cyphralTurnstileSuccess = (
     token: string,
   ) => {
-    turnstileToken = token;
-    updateSubmitState();
+    pendingToken?.resolve(token);
+    pendingToken = null;
   };
   (window as unknown as { cyphralTurnstileError: () => void }).cyphralTurnstileError = () => {
-    turnstileToken = '';
-    updateSubmitState();
+    pendingToken?.reject();
+    pendingToken = null;
   };
   (window as unknown as { cyphralTurnstileExpired: () => void }).cyphralTurnstileExpired = () => {
-    turnstileToken = '';
-    updateSubmitState();
+    pendingToken?.reject();
+    pendingToken = null;
   };
 
-  function resetTurnstile() {
-    turnstileToken = '';
-    const turnstile = (window as unknown as { turnstile?: { reset: (id?: string) => void } }).turnstile;
-    if (turnstile) turnstile.reset(turnstileWidgetId);
+  /** Resets the widget to a clean, unexecuted state — no pending token, no leftover success/error state visible. */
+  function resetTurnstileWidget() {
+    pendingToken = null;
+    getTurnstile()?.reset(turnstileContainerEl);
+  }
+
+  /** Resets, then runs the challenge fresh and waits for its result. Rejects on error, expiry, a missing widget, or timeout. */
+  function getFreshTurnstileToken(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const turnstile = getTurnstile();
+      if (!turnstile) {
+        reject();
+        return;
+      }
+
+      const timer = setTimeout(() => {
+        pendingToken = null;
+        reject();
+      }, TURNSTILE_TOKEN_TIMEOUT_MS);
+
+      pendingToken = {
+        resolve: (token) => {
+          clearTimeout(timer);
+          resolve(token);
+        },
+        reject: () => {
+          clearTimeout(timer);
+          reject();
+        },
+      };
+
+      turnstile.reset(turnstileContainerEl);
+      turnstile.execute(turnstileContainerEl);
+    });
   }
 
   // --- Form submission ---
@@ -259,10 +300,59 @@ if (app) {
     emailErrorEl.classList.add('hidden');
   }
 
+  // The button is disabled for exactly as long as this is true — never as a
+  // proxy for "is the form filled in". submitInFlight (not submitBtn.disabled
+  // itself) is the source of truth a re-entrant submit checks, so a second
+  // submit event fired before the first async step yields (a genuine
+  // double-click, Enter spammed, or a synthetic double-dispatch) can't slip
+  // through even though the DOM's own disabled-button click-blocking would
+  // normally already stop it.
+  let submitInFlight = false;
+
   formEl.addEventListener('submit', async (event) => {
     event.preventDefault();
+    if (submitInFlight) return;
     if (!selectedSlot) return;
+
     clearFieldErrors();
+    formStatusEl.classList.add('hidden');
+
+    // Validate live DOM values at the moment of the actual attempt, not a
+    // cached flag from earlier `input` events — a value the browser restored
+    // (bfcache, reload form-restore, an autofill that skips synthetic
+    // events) can leave a field looking filled in without ever having fired
+    // the event a reactive check would depend on.
+    const fieldErrors: string[] = [];
+    if (nameEl.value.trim().length === 0) {
+      showFieldError(nameErrorEl, 'Please enter your name.');
+      fieldErrors.push('name');
+    }
+    if (emailEl.value.trim().length === 0) {
+      showFieldError(emailErrorEl, 'Please enter your email address.');
+      fieldErrors.push('email');
+    }
+    if (fieldErrors.length > 0) {
+      formStatusEl.textContent = 'Please check the highlighted fields.';
+      formStatusEl.classList.remove('hidden');
+      return; // nothing sent; the button was never touched, so it's still clickable
+    }
+
+    submitInFlight = true;
+    submitBtn.disabled = true;
+    const originalLabel = submitBtn.textContent;
+    submitBtn.textContent = 'Requesting...';
+
+    let token: string;
+    try {
+      token = await getFreshTurnstileToken();
+    } catch {
+      formStatusEl.textContent = 'The verification check expired. Please try again.';
+      formStatusEl.classList.remove('hidden');
+      submitInFlight = false;
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalLabel;
+      return;
+    }
 
     const formData = new FormData(formEl);
     const payload = {
@@ -274,11 +364,9 @@ if (app) {
       note: String(formData.get('note') ?? ''),
       visitorTz,
       website: String(formData.get('website') ?? ''),
-      turnstileToken,
+      turnstileToken: token,
     };
 
-    submitBtn.disabled = true;
-    formStatusEl.classList.add('hidden');
     let submitted = false;
 
     try {
@@ -310,13 +398,12 @@ if (app) {
         formStatusEl.classList.remove('hidden');
         selectedSlot = null;
         selectedSlotEl.textContent = '';
-        updateSubmitState(); // no slot selected now, so this disables submit until a new one is picked
         await loadSlots();
       } else if (res.status === 429) {
         formStatusEl.textContent = 'Too many attempts. Please try again shortly.';
         formStatusEl.classList.remove('hidden');
       } else if (res.status === 403) {
-        formStatusEl.textContent = 'The verification check failed. Please try again.';
+        formStatusEl.textContent = 'The verification check expired. Please try again.';
         formStatusEl.classList.remove('hidden');
       } else if (res.status === 400 && body.fields) {
         if (body.fields.includes('name')) showFieldError(nameErrorEl, 'Please check your name.');
@@ -331,10 +418,11 @@ if (app) {
       formStatusEl.textContent = 'Sorry, something went wrong. Please email hello@cyphral.co.uk directly.';
       formStatusEl.classList.remove('hidden');
     } finally {
-      resetTurnstile();
       if (!submitted) {
+        resetTurnstileWidget(); // any failure: the next attempt must use a fresh token, never this one again
+        submitInFlight = false;
         submitBtn.disabled = false;
-        updateSubmitState();
+        submitBtn.textContent = originalLabel;
       }
     }
   });

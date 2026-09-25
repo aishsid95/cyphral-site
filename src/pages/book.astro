@@ -131,10 +131,19 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '1x0000000
             <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" />
           </div>
 
-          <div class="cf-turnstile" data-sitekey={turnstileSiteKey} data-action="booking_book" data-callback="cyphralTurnstileSuccess" data-error-callback="cyphralTurnstileError" data-expired-callback="cyphralTurnstileExpired"></div>
+          <!--
+            data-execution="execute": the widget renders its placeholder but does NOT
+            auto-run the challenge (and so does not capture a token) until book.ts calls
+            turnstile.execute() at the moment the visitor actually clicks submit. Without
+            this, the default "render" mode captures a token as soon as the widget becomes
+            visible (right after slot selection, before the visitor has filled in anything
+            else) — a token that can go stale or get invalidated well before it's actually
+            used. See the "Turnstile token timing" comment in book.ts.
+          -->
+          <div id="cf-turnstile-widget" class="cf-turnstile" data-sitekey={turnstileSiteKey} data-action="booking_book" data-execution="execute" data-callback="cyphralTurnstileSuccess" data-error-callback="cyphralTurnstileError" data-expired-callback="cyphralTurnstileExpired"></div>
 
           <div>
-            <button type="submit" id="booking-submit" disabled
+            <button type="submit" id="booking-submit"
               class="inline-flex items-center justify-center rounded-md bg-navy-900 hover:bg-navy-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 text-base font-medium transition-colors">
               Request this time
             </button>

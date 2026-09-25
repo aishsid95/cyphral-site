@@ -14,9 +14,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:d1": "vitest run --config vitest.workers.config.ts",
+    "test:dom": "vitest run --config vitest.dom.config.ts",
     "pretest:integration": "npm run build && node scripts/prepare-integration-test-config.mjs",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:all": "npm run test && npm run test:d1 && npm run test:integration",
+    "test:all": "npm run test && npm run test:d1 && npm run test:dom && npm run test:integration",
     "fetch-bank-holidays": "node scripts/fetch-bank-holidays.mjs"
   },
   "dependencies": {
@@ -35,6 +36,7 @@
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.2.0",
+    "happy-dom": "^20.14.5",
     "ical.js": "^2.2.1",
     "vitest": "^4.1.11"
   }

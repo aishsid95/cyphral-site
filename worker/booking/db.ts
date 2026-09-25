@@ -222,6 +222,8 @@ export interface ReminderCandidate {
   id: string;
   name: string;
   email: string;
+  company: string | null;
+  topic: string;
   slotStartUtc: string;
   visitorTz: string;
 }
@@ -231,23 +233,27 @@ export interface ReminderCandidate {
  * starting more than 1 hour and at most 24 hours from now. The 1-hour floor
  * matches the spec's "starts more than 1 hour from now" — it exists so the
  * reminder is never the very last thing sent before a call that's about to
- * start, e.g. right after a 30-minute cron tick.
+ * start, e.g. right after a 30-minute cron tick. Carries company/topic too,
+ * not just what the booker's own reminder needs — the owner digest sent
+ * alongside the reminders (see cron.ts) wants the full picture.
  */
 export async function listBookingsNeedingReminder(db: D1Database, nowUtc: string): Promise<ReminderCandidate[]> {
   const earliestUtc = new Date(Date.parse(nowUtc) + 60 * 60 * 1000).toISOString();
   const latestUtc = new Date(Date.parse(nowUtc) + 24 * 60 * 60 * 1000).toISOString();
   const { results } = await db
     .prepare(
-      `SELECT id, name, email, slot_start_utc, visitor_tz FROM bookings
+      `SELECT id, name, email, company, topic, slot_start_utc, visitor_tz FROM bookings
        WHERE status = 'confirmed' AND reminder_sent_at IS NULL
          AND slot_start_utc > ? AND slot_start_utc <= ?`,
     )
     .bind(earliestUtc, latestUtc)
-    .all<{ id: string; name: string; email: string; slot_start_utc: string; visitor_tz: string }>();
+    .all<{ id: string; name: string; email: string; company: string | null; topic: string; slot_start_utc: string; visitor_tz: string }>();
   return results.map((r) => ({
     id: r.id,
     name: r.name,
     email: r.email,
+    company: r.company,
+    topic: r.topic,
     slotStartUtc: r.slot_start_utc,
     visitorTz: r.visitor_tz,
   }));

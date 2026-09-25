@@ -3,6 +3,7 @@ import {
   sendBookerConfirmationEmail,
   sendCancellationEmails,
   sendOwnerNotificationEmail,
+  sendReminderDigestEmail,
   sendReminderEmail,
   sendViaResend,
 } from './mail';
@@ -129,6 +130,34 @@ describe('sendReminderEmail', () => {
     const body = JSON.parse(calls[0]);
     expect(body.subject).toBe('Reminder: your call with Cyphral');
     expect(body.html).toContain(encodeURIComponent('a-fresh-reminder-token'));
+  });
+});
+
+describe('sendReminderDigestEmail', () => {
+  it('sends one email listing every call passed in, to the given recipient', async () => {
+    const calls: string[] = [];
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      calls.push(init.body as string);
+      return new Response('{}', { status: 200 });
+    }) as typeof fetch;
+
+    await sendReminderDigestEmail({
+      apiKey: 'key',
+      to: 'hello@cyphral.co.uk',
+      calls: [
+        { slotStartIso: '2026-07-20T09:00:00Z', name: 'Ada Lovelace', email: 'ada@example.com', company: 'Analytical Engines Ltd', topic: 'ce-readiness' },
+        { slotStartIso: '2026-07-20T14:00:00Z', name: 'Grace Hopper', email: 'grace@example.com', company: '', topic: 'automation' },
+      ],
+      idempotencyKey: 'reminder-digest:2026-07-19T21:00:00Z',
+      fetchImpl,
+    });
+
+    expect(calls).toHaveLength(1); // one email, not one per booking
+    const body = JSON.parse(calls[0]);
+    expect(body.to).toEqual(['hello@cyphral.co.uk']);
+    expect(body.subject).toBe('Reminder sent: 2 calls');
+    expect(body.text).toContain('Ada Lovelace');
+    expect(body.text).toContain('Grace Hopper');
   });
 });
 

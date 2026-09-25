@@ -8,7 +8,8 @@
  */
 import { generateToken, hashToken, hmacHex } from './crypto';
 import { listBookingsNeedingReminder, markMailFailed, markReminderSent, type ReminderCandidate } from './db';
-import { isWithinMailBudget, recordMailSent, sendMailFailedAlert, sendReminderEmail } from './mail';
+import type { ReminderDigestEntry } from './emails/reminder-digest';
+import { isWithinMailBudget, recordMailSent, sendMailFailedAlert, sendReminderDigestEmail, sendReminderEmail } from './mail';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const MAIL_DAILY_CAP_DEFAULT = 40;
@@ -16,9 +17,10 @@ const MAIL_DAILY_CAP_DEFAULT = 40;
 export interface RunBookingMaintenanceDeps {
   sendMailFailedAlert: typeof sendMailFailedAlert;
   sendReminderEmail: typeof sendReminderEmail;
+  sendReminderDigestEmail: typeof sendReminderDigestEmail;
 }
 
-export const defaultCronDeps: RunBookingMaintenanceDeps = { sendMailFailedAlert, sendReminderEmail };
+export const defaultCronDeps: RunBookingMaintenanceDeps = { sendMailFailedAlert, sendReminderEmail, sendReminderDigestEmail };
 
 export interface RunBookingMaintenanceParams {
   db: D1Database;
@@ -37,6 +39,9 @@ export interface CronRunResult {
   alertsFailed: number;
   remindersSent: number;
   remindersFailed: number;
+  /** 0 or 1: at most one digest per run, only when remindersSent > 0 this run. */
+  reminderDigestSent: number;
+  reminderDigestFailed: number;
 }
 
 /** Deletes bookings past their purge_after date. Returns the number of rows deleted. */
@@ -122,30 +127,42 @@ async function alertOnFailedMail(
  * (already marked sent by then) is not retried — it's flagged mail_failed
  * instead, for alertOnFailedMail to pick up. If the Resend key isn't
  * configured, skips straight to returning zero counts.
+ *
+ * Once every candidate has been tried, if at least one reminder actually
+ * went out this run, sends Aisha one digest listing every call that was —
+ * one email per cron run that had reminders in it, never one per booking.
+ * There's no tracking column for the digest itself: it's derived fresh
+ * from this run's own successes, so there's nothing to mark and nothing to
+ * replay later if it fails — a failure here is final for this run, counted
+ * in reminderDigestFailed and nowhere else.
  */
 async function sendReminders(
   db: D1Database,
   nowUtc: string,
   resendApiKey: string | undefined,
+  ownerEmail: string,
   rateHmacSecret: string,
   mailDailyCapGlobal: number | undefined,
   deps: RunBookingMaintenanceDeps,
-): Promise<{ sent: number; failed: number }> {
+): Promise<{ sent: number; failed: number; digestSent: number; digestFailed: number }> {
   let sent = 0;
   let failed = 0;
+  let digestSent = 0;
+  let digestFailed = 0;
 
   if (!resendApiKey) {
-    return { sent, failed };
+    return { sent, failed, digestSent, digestFailed };
   }
 
   let candidates: ReminderCandidate[] = [];
   try {
     candidates = await listBookingsNeedingReminder(db, nowUtc);
   } catch {
-    return { sent, failed };
+    return { sent, failed, digestSent, digestFailed };
   }
 
   const dailyCapGlobal = mailDailyCapGlobal ?? MAIL_DAILY_CAP_DEFAULT;
+  const remindedCalls: ReminderDigestEntry[] = [];
 
   for (const booking of candidates) {
     try {
@@ -171,6 +188,13 @@ async function sendReminders(
       if (result.ok) {
         await recordMailSent(db, recipientHash, nowUtc);
         sent += 1;
+        remindedCalls.push({
+          slotStartIso: booking.slotStartUtc,
+          name: booking.name,
+          email: booking.email,
+          company: booking.company ?? '',
+          topic: booking.topic,
+        });
       } else {
         await markMailFailed(db, booking.id);
         failed += 1;
@@ -180,7 +204,32 @@ async function sendReminders(
     }
   }
 
-  return { sent, failed };
+  if (remindedCalls.length > 0) {
+    try {
+      const ownerRecipientHash = await hmacHex(rateHmacSecret, ownerEmail);
+      const withinBudget = await isWithinMailBudget({ db, recipientSubjectHash: ownerRecipientHash, nowUtc, dailyCapGlobal });
+      if (withinBudget) {
+        const digestResult = await deps.sendReminderDigestEmail({
+          apiKey: resendApiKey,
+          to: ownerEmail,
+          calls: remindedCalls,
+          idempotencyKey: `reminder-digest:${nowUtc}`,
+        });
+        if (digestResult.ok) {
+          await recordMailSent(db, ownerRecipientHash, nowUtc);
+          digestSent = 1;
+        } else {
+          digestFailed = 1;
+        }
+      } else {
+        digestFailed = 1;
+      }
+    } catch {
+      digestFailed = 1;
+    }
+  }
+
+  return { sent, failed, digestSent, digestFailed };
 }
 
 export async function runBookingMaintenance(
@@ -195,14 +244,29 @@ export async function runBookingMaintenance(
     params.ownerEmail,
     deps,
   );
-  const { sent: remindersSent, failed: remindersFailed } = await sendReminders(
+  const {
+    sent: remindersSent,
+    failed: remindersFailed,
+    digestSent: reminderDigestSent,
+    digestFailed: reminderDigestFailed,
+  } = await sendReminders(
     params.db,
     params.nowUtc,
     params.resendApiKey,
+    params.ownerEmail,
     params.rateHmacSecret,
     params.mailDailyCapGlobal,
     deps,
   );
 
-  return { purgedBookings, purgedRateEvents, alertsSent, alertsFailed, remindersSent, remindersFailed };
+  return {
+    purgedBookings,
+    purgedRateEvents,
+    alertsSent,
+    alertsFailed,
+    remindersSent,
+    remindersFailed,
+    reminderDigestSent,
+    reminderDigestFailed,
+  };
 }

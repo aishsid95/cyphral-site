@@ -12,6 +12,7 @@ import { buildConfirmedEmail } from './emails/confirmed';
 import { buildMailFailedAlertEmail } from './emails/alert';
 import { buildOwnerNotificationEmail } from './emails/owner-notification';
 import { buildReminderEmail } from './emails/reminder';
+import { buildReminderDigestEmail, type ReminderDigestEntry } from './emails/reminder-digest';
 import { stripCrlf, topicLabel } from './emails/shared';
 
 const FROM_ADDRESS = '"Aisha, Cyphral" <bookings@send.cyphral.co.uk>';
@@ -221,6 +222,27 @@ export async function sendReminderEmail(params: ReminderEmailParams): Promise<Se
     visitorTz: params.visitorTz,
     cancelLink: `https://cyphral.co.uk/book/cancel#t=${encodeURIComponent(params.cancelToken)}`,
   });
+  return sendViaResend({
+    apiKey: params.apiKey,
+    to: params.to,
+    replyTo: OWNER_REPLY_TO,
+    ...content,
+    idempotencyKey: params.idempotencyKey,
+    fetchImpl: params.fetchImpl,
+  });
+}
+
+export interface ReminderDigestEmailParams {
+  apiKey: string;
+  to: string;
+  calls: ReminderDigestEntry[];
+  idempotencyKey: string;
+  fetchImpl?: typeof fetch;
+}
+
+/** One email to Aisha per cron run that sends at least one booker reminder — never one per booking. See cron.ts. */
+export async function sendReminderDigestEmail(params: ReminderDigestEmailParams): Promise<SendResult> {
+  const content = buildReminderDigestEmail(params.calls);
   return sendViaResend({
     apiKey: params.apiKey,
     to: params.to,

@@ -284,6 +284,8 @@ describe('listBookingsNeedingReminder', () => {
         id: 'due-reminder',
         name: 'Grace Hopper',
         email: 'grace@example.com',
+        company: null,
+        topic: 'ce-readiness',
         slotStartUtc: SLOT_A.slotStartUtc,
         visitorTz: 'Europe/London',
       },

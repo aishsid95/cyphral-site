@@ -8,8 +8,11 @@
  * The cron trigger (wrangler.jsonc `triggers.crons`) fires this every 30
  * minutes: purge bookings past purge_after and rate_events older than 7
  * days, alert once per booking whose confirmation/notification email
- * failed to send, and send the day-before reminder to any confirmed
- * booking that's due one.
+ * failed to send, send the day-before reminder to any confirmed booking
+ * that's due one, and — once per run that sends at least one such
+ * reminder, not once per booking — send Aisha a digest of every call
+ * that was just reminded, so she has one place to check the video-call
+ * link has gone out for each before it happens.
  */
 import { handle } from '@astrojs/cloudflare/handler';
 import { env } from 'cloudflare:workers';

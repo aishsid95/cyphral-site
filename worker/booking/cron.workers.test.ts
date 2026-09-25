@@ -112,6 +112,7 @@ describe('runBookingMaintenance — alerting on mail_failed', () => {
   const deps = (): RunBookingMaintenanceDeps => ({
     sendMailFailedAlert: vi.fn(async () => ({ ok: true })),
     sendReminderEmail: vi.fn(async () => ({ ok: true })),
+    sendReminderDigestEmail: vi.fn(async () => ({ ok: true })),
   });
 
   it('skips the alert step entirely when the Resend key is missing, without touching D1 or calling the sender', async () => {
@@ -227,6 +228,7 @@ describe('runBookingMaintenance — day-before reminders', () => {
   const deps = (): RunBookingMaintenanceDeps => ({
     sendMailFailedAlert: vi.fn(async () => ({ ok: true })),
     sendReminderEmail: vi.fn(async () => ({ ok: true })),
+    sendReminderDigestEmail: vi.fn(async () => ({ ok: true })),
   });
 
   it('sends a reminder for a confirmed booking due one, and marks it sent', async () => {
@@ -351,6 +353,99 @@ describe('runBookingMaintenance — day-before reminders', () => {
   });
 });
 
+describe('runBookingMaintenance — reminder digest to the owner', () => {
+  const deps = (): RunBookingMaintenanceDeps => ({
+    sendMailFailedAlert: vi.fn(async () => ({ ok: true })),
+    sendReminderEmail: vi.fn(async () => ({ ok: true })),
+    sendReminderDigestEmail: vi.fn(async () => ({ ok: true })),
+  });
+
+  it('sends exactly one digest email when reminders go out for two bookings in the same run', async () => {
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ id: 'digest-a', ...SLOT_A, name: 'Ada Lovelace' }));
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ id: 'digest-b', ...SLOT_B, name: 'Grace Hopper' }));
+    const d = deps();
+
+    const result = await runBookingMaintenance(
+      { db: env.BOOKINGS_DB, nowUtc: '2026-07-19T21:00:00Z', resendApiKey: 'key', ...BASE_PARAMS },
+      d,
+    );
+
+    expect(result.remindersSent).toBe(2);
+    expect(result.reminderDigestSent).toBe(1);
+    expect(result.reminderDigestFailed).toBe(0);
+    expect(d.sendReminderDigestEmail).toHaveBeenCalledTimes(1); // one digest, not one per booking
+
+    const [call] = vi.mocked(d.sendReminderDigestEmail).mock.calls[0];
+    expect(call.to).toBe('hello@cyphral.co.uk');
+    expect(call.calls).toHaveLength(2);
+    expect(call.calls.map((c) => c.name).sort()).toEqual(['Ada Lovelace', 'Grace Hopper']);
+  });
+
+  it('does not send a digest when no reminders went out this run', async () => {
+    const d = deps();
+    const result = await runBookingMaintenance(
+      { db: env.BOOKINGS_DB, nowUtc: '2026-07-19T21:00:00Z', resendApiKey: 'key', ...BASE_PARAMS },
+      d,
+    );
+
+    expect(result.remindersSent).toBe(0);
+    expect(result.reminderDigestSent).toBe(0);
+    expect(d.sendReminderDigestEmail).not.toHaveBeenCalled();
+  });
+
+  it('a failed digest send does not affect the booker reminders already sent', async () => {
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ id: 'digest-fails', ...SLOT_A }));
+    const d = deps();
+    d.sendReminderDigestEmail = vi.fn(async () => ({ ok: false }) as const);
+
+    const result = await runBookingMaintenance(
+      { db: env.BOOKINGS_DB, nowUtc: '2026-07-19T21:00:00Z', resendApiKey: 'key', ...BASE_PARAMS },
+      d,
+    );
+
+    expect(result.remindersSent).toBe(1); // the booker's own reminder still went out
+    expect(result.reminderDigestSent).toBe(0);
+    expect(result.reminderDigestFailed).toBe(1);
+  });
+
+  it('counts the digest against the daily mail cap, and is skipped once the cap is already used up', async () => {
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ id: 'cap-a', ...SLOT_A }));
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ id: 'cap-b', ...SLOT_B }));
+    const d = deps();
+
+    // Exactly enough budget for the two booker reminders and nothing left over.
+    const result = await runBookingMaintenance(
+      { db: env.BOOKINGS_DB, nowUtc: '2026-07-19T21:00:00Z', resendApiKey: 'key', mailDailyCapGlobal: 2, ...BASE_PARAMS },
+      d,
+    );
+
+    expect(result.remindersSent).toBe(2);
+    expect(result.reminderDigestSent).toBe(0); // no budget left for it
+    expect(result.reminderDigestFailed).toBe(1);
+    expect(d.sendReminderDigestEmail).not.toHaveBeenCalled();
+  });
+
+  it('a successfully sent digest is itself recorded against the mail budget', async () => {
+    await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ id: 'digest-recorded', ...SLOT_A }));
+    const d = deps();
+
+    // Budget for the one reminder plus the digest, but no more — a third
+    // send in the same run (there isn't one here) would be refused.
+    const result = await runBookingMaintenance(
+      { db: env.BOOKINGS_DB, nowUtc: '2026-07-19T21:00:00Z', resendApiKey: 'key', mailDailyCapGlobal: 2, ...BASE_PARAMS },
+      d,
+    );
+
+    expect(result.remindersSent).toBe(1);
+    expect(result.reminderDigestSent).toBe(1);
+
+    const globalSends = await env.BOOKINGS_DB
+      .prepare("SELECT COUNT(*) AS n FROM rate_events WHERE bucket = 'mail:global'")
+      .first<{ n: number }>();
+    expect(globalSends?.n).toBe(2); // the reminder and the digest each recorded their own send
+  });
+});
+
 describe('runBookingMaintenance — full sweep', () => {
   it('runs every job and reports accurate counts', async () => {
     await createConfirmedBooking(env.BOOKINGS_DB, bookingInput({ id: 'old-booking', ...SLOT_B, purgeAfterUtc: '2026-08-01T00:00:00Z' }));
@@ -361,7 +456,11 @@ describe('runBookingMaintenance — full sweep', () => {
       .bind('book:ip', 'stale-event', '2026-07-01T00:00:00Z')
       .run();
 
-    const d = { sendMailFailedAlert: vi.fn(async () => ({ ok: true }) as const), sendReminderEmail: vi.fn(async () => ({ ok: true }) as const) };
+    const d = {
+      sendMailFailedAlert: vi.fn(async () => ({ ok: true }) as const),
+      sendReminderEmail: vi.fn(async () => ({ ok: true }) as const),
+      sendReminderDigestEmail: vi.fn(async () => ({ ok: true }) as const),
+    };
     // "now" purges old-booking (past its purge_after) and is 12 hours before
     // due-reminder's slot (13:00 20 Jul), inside the reminder window.
     const result = await runBookingMaintenance(
@@ -400,6 +499,8 @@ describe('runBookingMaintenance — full sweep', () => {
       alertsFailed: 0,
       remindersSent: 0,
       remindersFailed: 0,
+      reminderDigestSent: 0,
+      reminderDigestFailed: 0,
     });
   });
 });
